@@ -1,272 +1,74 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KaHack | Secure Store</title>
-    
-    <!-- 1. LOAD SUPABASE -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- 2. STYLES (CSS) -->
-    <style>
-        :root {
-            --bg: #050505; --card-bg: #111111; --border: #333333;
-            --accent: #ffffff; --text-main: #ffffff; --text-muted: #888888;
-            --success: #4ade80; --warning: #fbbf24; --error: #ff3333;
-        }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; }
+:root {
+    --bg: #0a0a0a;
+    --panel: #141414;
+    --border: #2a2a2a;
+    --text: #eeeeee;
+    --accent: #4ade80; /* Neon Green */
+}
 
-        body {
-            background-color: var(--bg); color: var(--text-main);
-            display: flex; flex-direction: column; align-items: center;
-            min-height: 100vh; padding: 40px 20px; gap: 20px;
-            background-image: radial-gradient(circle at 50% 0%, #1a1a1a 0%, transparent 50%);
-        }
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: monospace; }
 
-        .card {
-            background: var(--card-bg); border: 1px solid var(--border);
-            border-radius: 12px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-            width: 100%; max-width: 450px; text-align: center;
-        }
+body {
+    background-color: var(--bg);
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    padding: 50px 20px;
+}
 
-        h2 { font-size: 20px; letter-spacing: 2px; margin-bottom: 20px; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-        h3 { margin-top: 15px; font-size: 24px; }
-        #price-display { font-size: 32px; color: var(--success); margin: 10px 0 20px 0; }
+.container {
+    width: 100%;
+    max-width: 450px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
 
-        label, .subtitle { font-size: 12px; color: var(--text-muted); display: block; text-align: left; }
-        .subtitle { text-align: center; margin-bottom: 15px; }
+.panel {
+    background-color: var(--panel);
+    border: 1px solid var(--border);
+    padding: 25px;
+    border-radius: 8px;
+    text-align: center;
+}
 
-        input[type=range] { width: 100%; margin: 15px 0; accent-color: var(--accent); cursor: pointer; }
-        .slider-labels { display: flex; justify-content: space-between; font-size: 12px; opacity: 0.8; margin-top: 6px; }
+h2 { margin-bottom: 20px; font-size: 18px; letter-spacing: 2px; border-bottom: 1px solid var(--border); padding-bottom: 10px;}
+.highlight { color: var(--accent); }
+p { font-size: 12px; color: #888; margin-bottom: 15px; }
 
-        input[type="text"] { width: 100%; padding: 14px; background: #0a0a0a; border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 14px; outline: none; margin-bottom: 10px; text-align: center; letter-spacing: 1px; }
-        input[type="text"]:focus { border-color: var(--accent); }
+/* Controls */
+.controls { margin-bottom: 25px; text-align: left; }
 
-        button { width: 100%; padding: 14px; background: var(--accent); color: #000; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s; letter-spacing: 1px; margin-top: 10px; }
-        button:active { transform: scale(0.98); }
-        button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+.checkbox-container {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
+    background: #000; padding: 12px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
+}
+.checkbox-container input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
 
-        .hidden { display: none !important; }
-        .text-success { color: var(--success) !important; }
+input[type=range] { width: 100%; margin-top: 10px; accent-color: var(--accent); cursor: pointer;}
 
-        .status-msg { font-size: 12px; margin-top: 15px; padding: 10px; border-radius: 6px; font-weight: bold; background: rgba(0,0,0,0.5); }
-        .order-box { background: #000; border: 1px dashed var(--border); padding: 15px; border-radius: 6px; margin-bottom: 15px; }
-        #display-order-id { font-size: 20px; font-weight: bold; color: var(--accent); letter-spacing: 2px; }
-    </style>
-</head>
-<body>
+.summary { margin-bottom: 25px; }
+#price-display { font-size: 38px; margin-top: 5px; }
 
-    <!-- UI: STOREFRONT -->
-    <div class="card" id="store-section">
-        <h2>1. BUY ACCESS</h2>
-        <label>Select Duration</label>
-        
-        <input id="duration-slider" type="range" min="0" max="2" step="1" value="0" />
-        <div class="slider-labels">
-            <span>30 days</span>
-            <span>60 days</span>
-            <span>Lifetime</span>
-        </div>
+/* Inputs and Buttons */
+input[type=text] {
+    width: 100%; padding: 15px; background: #000; border: 1px solid var(--border);
+    color: #fff; text-align: center; font-size: 14px; border-radius: 6px; margin-bottom: 15px;
+}
+input[type=text]:focus { border-color: var(--accent); outline: none; }
 
-        <h3 id="duration-display">30 days</h3>
-        <h3 id="price-display">2.00€</h3>
+.primary-btn {
+    width: 100%; padding: 15px; background: #fff; color: #000; font-weight: bold;
+    border: none; border-radius: 6px; cursor: pointer; transition: 0.2s; font-size: 14px;
+}
+.primary-btn:active { transform: scale(0.98); }
 
-        <button id="checkout-btn">PROCEED TO PAYPAL</button>
-    </div>
+.secondary-btn {
+    width: 100%; padding: 12px; background: transparent; color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; cursor: pointer; margin-top: 10px;
+}
 
-    <!-- UI: ORDER GENERATED -->
-    <div class="card hidden" id="order-generated-section">
-        <h2 class="text-success">ORDER GENERATED</h2>
-        <p class="subtitle">Pay via PayPal, then use this ID below to check your status.</p>
-        
-        <div class="order-box">
-            <div id="display-order-id">ORD-XXXXXX</div>
-        </div>
-        
-        <button id="copy-btn" class="secondary">COPY ID</button>
-    </div>
-
-    <!-- UI: TRACKER -->
-    <div class="card" id="tracker-section">
-        <h2>2. VERIFY PAYMENT</h2>
-        <input type="text" id="order-id" placeholder="Order ID (e.g., ORD-123)" autocomplete="off">
-        <button id="check-status-btn">CHECK STATUS</button>
-        <div id="status-message" class="status-msg hidden"></div>
-    </div>
-
-    <!-- UI: CLAIM LICENSE -->
-    <div class="card hidden" id="license-section">
-        <h2 class="text-success">3. CLAIM LICENSE</h2>
-        <p class="subtitle">Enter a custom key or leave blank for a random one.</p>
-        <input type="text" id="custom-key" placeholder="KAHACK-CUSTOM..." autocomplete="off">
-        <button id="create-license-btn">GENERATE & ACTIVATE</button>
-    </div>
-
-    <!-- 3. LOGIC (JAVASCRIPT) -->
-    <script>
-        // --- A. CONFIGURATION ---
-        const SUPABASE_URL = 'https://ujlhyugejsgqdtjfejar.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqbGh5dWdlanNncWR0amZlamFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTU0NDksImV4cCI6MjA5MTM5MTQ0OX0.IpFfh8RliulIFoU1SiYpf20mQ2XLnFV8HKixaaqoitE';
-        
-        // Proxy wrapping the webhook to prevent CORS crashing
-        const RAW_WEBHOOK = 'https://discord.com/api/webhooks/1499684331633905667/o85983SOfWdkvE6qvC4-P7Z3t1rV65KRaTl7EWiCnq5USEpQOYuvu-vut38tEZiY-abi';
-        const DISCORD_WEBHOOK = 'https://corsproxy.io/?' + encodeURIComponent(RAW_WEBHOOK);
-
-        // --- B. INITIALIZATION ---
-        let supabase;
-        let validatedOrder = null;
-        let generatedOrderIdForCopy = "";
-
-        // Check if Supabase loaded, then initialize
-        if (!window.supabase) {
-            alert("Critical Error: Supabase failed to load. Check your internet or disable adblocker.");
-        } else {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        }
-
-        // --- C. SLIDER LOGIC ---
-        const PLANS = [
-            { id: "30", label: "30 days", price: 2.00 },
-            { id: "60", label: "60 days", price: 3.00 },
-            { id: "permanent", label: "Lifetime", price: 4.00 }
-        ];
-
-        const slider = document.getElementById("duration-slider");
-        const durationDisplay = document.getElementById("duration-display");
-        const priceDisplay = document.getElementById("price-display");
-
-        function renderPlan() {
-            const plan = PLANS[Number(slider.value)] || PLANS[0];
-            durationDisplay.textContent = plan.label;
-            priceDisplay.textContent = plan.price.toFixed(2) + "€";
-        }
-        slider.addEventListener("input", renderPlan);
-        renderPlan(); // Run once on load
-
-        // --- D. CHECKOUT LOGIC ---
-        document.getElementById("checkout-btn").addEventListener("click", async () => {
-            try {
-                const plan = PLANS[Number(slider.value)];
-                const orderId = 'ORD-' + Math.random().toString(36).substr(2, 6).toUpperCase();
-                const priceString = plan.price.toFixed(2);
-
-                // Setup UI
-                document.getElementById('store-section').classList.add('hidden');
-                document.getElementById('order-generated-section').classList.remove('hidden');
-                document.getElementById('display-order-id').innerText = orderId;
-                document.getElementById('order-id').value = orderId; // Auto-fill tracker
-                generatedOrderIdForCopy = orderId;
-
-                // Save to Database
-                const { error } = await supabase.from('orders').insert([
-                    { order_id: orderId, days: plan.id, status: 'pending' }
-                ]);
-                
-                if (error) throw new Error("Database Write Error: " + error.message);
-
-                // Send Discord Webhook (Silently catch failures so PayPal still opens)
-                fetch(DISCORD_WEBHOOK, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        content: `🛒 **New Purchase Attempt**\n**Order ID:** \`${orderId}\`\n**Duration:** ${plan.label}\n**Expected:** €${priceString}` 
-                    })
-                }).catch(err => console.log("Webhook CORS blocked, but order saved locally."));
-
-                // Open PayPal
-                window.open(`https://paypal.me/transfer959/${priceString}`, '_blank');
-                
-            } catch (err) {
-                alert("Checkout Error: " + err.message);
-            }
-        });
-
-        document.getElementById("copy-btn").addEventListener("click", () => {
-            navigator.clipboard.writeText(generatedOrderIdForCopy);
-            alert("Copied: " + generatedOrderIdForCopy);
-        });
-
-        // --- E. ORDER TRACKING LOGIC ---
-        function showStatus(text, colorHex) {
-            const msgBox = document.getElementById('status-message');
-            msgBox.style.color = colorHex;
-            msgBox.style.border = `1px solid ${colorHex}`;
-            msgBox.innerText = text;
-            msgBox.classList.remove('hidden');
-        }
-
-        document.getElementById("check-status-btn").addEventListener("click", async () => {
-            try {
-                const orderId = document.getElementById('order-id').value.trim().toUpperCase();
-                if (!orderId) return showStatus("Please enter an Order ID.", "#ff3333");
-
-                showStatus("Checking database...", "#fbbf24");
-
-                const { data, error } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
-                const licSection = document.getElementById('license-section');
-
-                if (error || !data) {
-                    showStatus("Order not found. Check your ID.", "#ff3333");
-                    licSection.classList.add('hidden');
-                    return;
-                }
-
-                if (data.status === 'authorized') {
-                    showStatus("Payment Verified! Claim your key below.", "#4ade80");
-                    validatedOrder = data;
-                    licSection.classList.remove('hidden');
-                } else if (data.status === 'claimed') {
-                    showStatus("This order was already used to claim a key.", "#ff3333");
-                    licSection.classList.add('hidden');
-                } else {
-                    showStatus("Payment pending verification. Please wait.", "#fbbf24");
-                    licSection.classList.add('hidden');
-                }
-            } catch (err) {
-                alert("Status Check Error: " + err.message);
-            }
-        });
-
-        // --- F. LICENSE GENERATION LOGIC ---
-        document.getElementById("create-license-btn").addEventListener("click", async () => {
-            try {
-                if (!validatedOrder) return;
-                
-                let inputKey = document.getElementById('custom-key').value.trim().replace(/\s+/g, '-').toUpperCase();
-                let finalKey = inputKey || 'KAHACK-' + Math.random().toString(36).substr(2, 8).toUpperCase();
-
-                // Insert License
-                const { error } = await supabase.from('licenses').insert([{
-                    key: finalKey, 
-                    rank: validatedOrder.days 
-                }]);
-
-                if (error) {
-                    showStatus("Custom key already taken! Try another.", "#ff3333");
-                    return;
-                } 
-                
-                // Lock Order
-                await supabase.from('orders').update({ status: 'claimed' }).eq('order_id', validatedOrder.order_id);
-                
-                // Show Success
-                document.getElementById('license-section').innerHTML = `
-                    <div style="text-align:center;">
-                        <h2 class="text-success" style="margin-bottom:10px;">SUCCESS!</h2>
-                        <div class="order-box" style="margin:15px 0;">
-                            <div style="color:#fff; font-size:16px; font-weight:bold; letter-spacing:1px;">${finalKey}</div>
-                        </div>
-                        <p style="font-size:10px; color:var(--warning);">COPY THIS KEY NOW. IT WILL NOT BE SHOWN AGAIN.</p>
-                    </div>
-                `;
-                showStatus("License generated securely.", "#4ade80");
-                
-            } catch (err) {
-                alert("License Generation Error: " + err.message);
-            }
-        });
-    </script>
-</body>
-</html>
+.code-box { background: #000; border: 1px dashed var(--border); padding: 15px; font-size: 22px; font-weight: bold; color: var(--accent); letter-spacing: 2px; border-radius: 6px; }
+.status-box { padding: 15px; font-size: 12px; font-weight: bold; background: #000; border-radius: 6px; border: 1px solid var(--border); }
+.hidden { display: none !important; }
