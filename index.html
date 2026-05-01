@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KaHack | Storefront</title>
+    <title>KaHack | Store</title>
 
-    <!-- 1. LOAD SUPABASE -->
+    <!-- LOAD SUPABASE -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- 2. STYLING -->
+    <!-- STYLING -->
     <style>
         :root {
             --bg: #09090b; --panel: #18181b; --border: #27272a;
@@ -24,7 +24,7 @@
             min-height: 100vh; padding: 50px 20px;
         }
 
-        .container { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 24px; }
+        .container { width: 100%; max-width: 450px; display: flex; flex-direction: column; gap: 24px; }
 
         .card {
             background-color: var(--panel); border: 1px solid var(--border);
@@ -34,27 +34,24 @@
 
         h2 { font-size: 18px; letter-spacing: 2px; margin-bottom: 24px; color: var(--text-main); border-bottom: 1px solid var(--border); padding-bottom: 12px; }
         .highlight { color: var(--accent); }
+        p { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5; }
 
-        /* Controls */
-        .controls-box { text-align: left; margin-bottom: 30px; }
-        
+        /* Pricing Controls */
         .toggle-row {
-            display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px;
             background: #000; padding: 14px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
         }
         .toggle-row input { width: 20px; height: 20px; accent-color: var(--accent); cursor: pointer; }
 
-        input[type=range] { width: 100%; margin: 10px 0; accent-color: var(--accent); cursor: pointer; }
-        .slider-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
-
-        /* Summary */
-        #days-display { font-size: 20px; color: var(--text-muted); margin-bottom: 8px; }
+        input[type=range] { width: 100%; margin: 15px 0; accent-color: var(--accent); cursor: pointer; }
+        
+        #days-display { font-size: 20px; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; }
         #price-display { font-size: 42px; font-weight: bold; color: var(--accent); margin-bottom: 24px; }
 
         /* Inputs & Buttons */
         input[type=text] {
             width: 100%; padding: 16px; background: #000; border: 1px solid var(--border);
-            color: #fff; text-align: center; font-size: 14px; border-radius: 8px; margin-bottom: 16px; letter-spacing: 1px;
+            color: #fff; text-align: center; font-size: 16px; border-radius: 8px; margin-bottom: 16px; letter-spacing: 1px;
         }
         input[type=text]:focus { border-color: var(--accent); outline: none; }
 
@@ -65,252 +62,221 @@
         button:active { transform: scale(0.98); }
         button.secondary { background: transparent; color: var(--text-main); border: 1px solid var(--border); margin-top: 12px; }
 
-        /* Status & Output Boxes */
         .output-box { background: #000; border: 1px dashed var(--border); padding: 20px; font-size: 24px; font-weight: bold; color: var(--accent); letter-spacing: 2px; border-radius: 8px; margin-bottom: 16px; }
         .status-msg { padding: 12px; font-size: 13px; font-weight: bold; background: #000; border-radius: 8px; border: 1px solid var(--border); margin-top: 16px; }
-        
         .hidden { display: none !important; }
-        p { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5; }
     </style>
 </head>
 <body>
 
     <div class="container">
         
-        <!-- STEP 1: CONFIGURATION -->
-        <div class="card" id="ui-checkout">
-            <h2>1. CONFIGURE ACCESS</h2>
+        <!-- STEP 1: PRICING -->
+        <div class="card" id="step-1-checkout">
+            <h2>1. SELECT DURATION</h2>
             
-            <div class="controls-box" id="slider-wrapper">
-                <label class="toggle-row">
-                    <input type="checkbox" id="lifetime-check">
-                    <span style="font-size: 14px; font-weight: bold;">Unlock Lifetime Access (4.00€)</span>
-                </label>
+            <label class="toggle-row">
+                <span style="font-size: 14px; font-weight: bold;">Unlock Lifetime Access</span>
+                <input type="checkbox" id="input-lifetime">
+            </label>
 
-                <div class="slider-labels">
+            <div id="slider-container" style="text-align: left; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
                     <span>30 Days</span>
                     <span>60 Days</span>
                 </div>
-                <input type="range" id="days-slider" min="30" max="60" value="30">
-                <div style="text-align: center; font-size: 11px; color: #666; margin-top: 8px;">+0.05€ per additional day</div>
+                <input type="range" id="input-days" min="30" max="60" value="30">
+                <div style="text-align: center; font-size: 11px; color: #666; margin-top: 4px;">+0.05€ per extra day</div>
             </div>
 
             <div id="days-display">30 Days</div>
             <div id="price-display">2.00€</div>
 
-            <button id="btn-pay">PROCEED TO PAYPAL</button>
+            <button id="btn-checkout">OPEN PAYPAL & CHECKOUT</button>
         </div>
 
-        <!-- STEP 2: ORDER GENERATED (Hidden) -->
-        <div class="card hidden" id="ui-order">
+        <!-- STEP 2: ORDER ID -->
+        <div class="card hidden" id="step-2-order">
             <h2 class="highlight">ORDER GENERATED</h2>
-            <p>Please pay the exact amount via PayPal. Keep this ID safe to check your status.</p>
-            
-            <div class="output-box" id="order-id-display">ORD-XXXXXX</div>
+            <p>Pay via PayPal. Then copy this Order ID below to verify your payment.</p>
+            <div class="output-box" id="display-order-id">ORD-XXXXXX</div>
             <button id="btn-copy" class="secondary">COPY ORDER ID</button>
         </div>
 
-        <!-- STEP 3: VERIFICATION -->
-        <div class="card" id="ui-verify">
+        <!-- STEP 3: VERIFY -->
+        <div class="card" id="step-3-verify">
             <h2>2. VERIFY PAYMENT</h2>
-            <p>Paste your Order ID here after sending payment.</p>
-            <input type="text" id="verify-input" placeholder="ORD-..." autocomplete="off">
+            <p>Paste your Order ID here after sending the money.</p>
+            <input type="text" id="input-verify" placeholder="ORD-..." autocomplete="off">
             <button id="btn-verify">CHECK STATUS</button>
             <div id="status-box" class="status-msg hidden"></div>
         </div>
 
-        <!-- STEP 4: CLAIM KEY (Hidden) -->
-        <div class="card hidden" id="ui-claim">
-            <h2 class="highlight">3. CLAIM KEY</h2>
-            <p>Enter a custom license key or leave blank for a random secure key.</p>
-            <input type="text" id="custom-key-input" placeholder="KAHACK-CUSTOM..." autocomplete="off">
+        <!-- STEP 4: CLAIM KEY -->
+        <div class="card hidden" id="step-4-claim">
+            <h2 class="highlight">3. CLAIM LICENSE</h2>
+            <p>Enter a custom key name, or leave blank to generate a random secure key.</p>
+            <input type="text" id="input-custom-key" placeholder="KAHACK-CUSTOM..." autocomplete="off">
             <button id="btn-claim">GENERATE LICENSE</button>
         </div>
 
     </div>
 
-    <!-- 3. LOGIC (Must be at the bottom) -->
+    <!-- JAVASCRIPT LOGIC -->
     <script>
-        // --- CONFIGURATION ---
+        // API CONFIGURATION
         const SUPABASE_URL = 'https://ujlhyugejsgqdtjfejar.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqbGh5dWdlanNncWR0amZlamFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTU0NDksImV4cCI6MjA5MTM5MTQ0OX0.IpFfh8RliulIFoU1SiYpf20mQ2XLnFV8HKixaaqoitE';
+        const WEBHOOK_URL = 'https://corsproxy.io/?' + encodeURIComponent('https://discord.com/api/webhooks/1499684331633905667/o85983SOfWdkvE6qvC4-P7Z3t1rV65KRaTl7EWiCnq5USEpQOYuvu-vut38tEZiY-abi');
+
+        let supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
         
-        // Wrapped in CORS proxy to prevent browser from blocking the webhook
-        const RAW_WEBHOOK = 'https://discord.com/api/webhooks/1499684331633905667/o85983SOfWdkvE6qvC4-P7Z3t1rV65KRaTl7EWiCnq5USEpQOYuvu-vut38tEZiY-abi';
-        const DISCORD_WEBHOOK = 'https://corsproxy.io/?' + encodeURIComponent(RAW_WEBHOOK);
+        // STATE VARIABLES
+        let currentPrice = 2.00;
+        let currentDays = "30";
+        let finalOrderId = "";
+        let verifiedOrderData = null;
 
-        // --- GLOBAL STATE ---
-        let supabase;
-        let activePrice = 2.00;
-        let activeDays = "30";
-        let generatedOrderId = "";
-        let authorizedOrderData = null;
+        // --- 1. DYNAMIC PRICING MATH ---
+        const uiSlider = document.getElementById('input-days');
+        const uiLifetime = document.getElementById('input-lifetime');
+        const txtDays = document.getElementById('days-display');
+        const txtPrice = document.getElementById('price-display');
+        const sliderBox = document.getElementById('slider-container');
 
-        // --- INITIALIZATION ---
-        window.addEventListener('DOMContentLoaded', () => {
-            if (!window.supabase) {
-                alert("Critical Error: Supabase failed to load. Check internet or disable adblocker.");
-                return;
-            }
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            calculatePrice(); // Set initial UI
-        });
-
-        // --- PRICING ENGINE ---
-        const slider = document.getElementById('days-slider');
-        const lifetimeCheck = document.getElementById('lifetime-check');
-        const daysDisplay = document.getElementById('days-display');
-        const priceDisplay = document.getElementById('price-display');
-        const sliderWrapper = document.getElementById('slider-wrapper');
-
-        function calculatePrice() {
-            if (lifetimeCheck.checked) {
-                // Lifetime Mode
-                slider.disabled = true;
-                slider.style.opacity = "0.3";
-                activePrice = 4.00;
-                activeDays = "Lifetime";
-                daysDisplay.innerText = "Lifetime Access";
+        function updatePrice() {
+            if (uiLifetime.checked) {
+                uiSlider.disabled = true;
+                sliderBox.style.opacity = "0.3";
+                currentDays = "Lifetime";
+                currentPrice = 4.00;
+                txtDays.innerText = "Lifetime Access";
             } else {
-                // Dynamic Range Mode
-                slider.disabled = false;
-                slider.style.opacity = "1";
+                uiSlider.disabled = false;
+                sliderBox.style.opacity = "1";
                 
-                let d = parseInt(slider.value);
-                activeDays = d.toString();
-                daysDisplay.innerText = d + " Days";
+                let days = parseInt(uiSlider.value);
+                currentDays = days.toString();
+                txtDays.innerText = days + " Days";
 
-                if (d === 30) {
-                    activePrice = 2.00;
-                } else if (d === 60) {
-                    activePrice = 3.00; // Hardcoded cap
-                } else {
-                    activePrice = 2.00 + ((d - 30) * 0.05); // 5 cents per extra day
-                }
+                if (days === 30) currentPrice = 2.00;
+                else if (days === 60) currentPrice = 3.00;
+                else currentPrice = 2.00 + ((days - 30) * 0.05); // Exact math
             }
-            
-            priceDisplay.innerText = activePrice.toFixed(2) + "€";
+            txtPrice.innerText = currentPrice.toFixed(2) + "€";
         }
 
-        slider.addEventListener('input', calculatePrice);
-        lifetimeCheck.addEventListener('change', calculatePrice);
+        uiSlider.addEventListener('input', updatePrice);
+        uiLifetime.addEventListener('change', updatePrice);
 
-        // --- CHECKOUT LOGIC ---
-        document.getElementById('btn-pay').addEventListener('click', async () => {
-            try {
-                generatedOrderId = 'ORD-' + Math.random().toString(36).substr(2, 7).toUpperCase();
-                const priceStr = activePrice.toFixed(2);
+        // --- 2. CHECKOUT & PAYPAL FIX ---
+        document.getElementById('btn-checkout').addEventListener('click', () => {
+            // A. Open PayPal IMMEDIATELY to stop the browser from blocking the popup.
+            let priceString = currentPrice.toFixed(2);
+            window.open(`https://paypal.me/transfer959/${priceString}`, '_blank');
 
-                // 1. Swap UI
-                document.getElementById('ui-checkout').classList.add('hidden');
-                document.getElementById('ui-order').classList.remove('hidden');
-                document.getElementById('order-id-display').innerText = generatedOrderId;
-                document.getElementById('verify-input').value = generatedOrderId; // Auto-fill
+            // B. Generate Order ID
+            finalOrderId = 'ORD-' + Math.random().toString(36).substr(2, 7).toUpperCase();
 
-                // 2. Database Insert
-                const { error } = await supabase.from('orders').insert([
-                    { order_id: generatedOrderId, days: activeDays, status: 'pending' }
-                ]);
-                if (error) throw new Error("Database Write Failed: " + error.message);
+            // C. Swap UI Screens
+            document.getElementById('step-1-checkout').classList.add('hidden');
+            document.getElementById('step-2-order').classList.remove('hidden');
+            document.getElementById('display-order-id').innerText = finalOrderId;
+            document.getElementById('input-verify').value = finalOrderId;
 
-                // 3. Webhook (Fire and forget, catch errors silently so PayPal still opens)
-                fetch(DISCORD_WEBHOOK, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        content: `🚨 **NEW ORDER**\n**ID:** \`${generatedOrderId}\`\n**Duration:** ${activeDays}\n**Amount:** €${priceStr}` 
-                    })
-                }).catch(e => console.log("Webhook bypassed."));
-
-                // 4. Open PayPal
-                window.open(`https://paypal.me/transfer959/${priceStr}`, '_blank');
-                
-            } catch (e) {
-                alert("Checkout Error: " + e.message);
+            // D. Run database and webhook tasks silently in the background
+            if (supabase) {
+                supabase.from('orders').insert([
+                    { order_id: finalOrderId, days: currentDays, status: 'pending' }
+                ]).then(({error}) => {
+                    if(error) console.error("Database error:", error.message);
+                });
             }
+
+            fetch(WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    content: `🛒 **NEW ORDER OPENED**\n**ID:** \`${finalOrderId}\`\n**Duration:** ${currentDays}\n**Amount:** €${priceString}` 
+                })
+            }).catch(e => console.log("Webhook CORS blocked, ignoring."));
         });
 
-        // Copy ID Utility
+        // Copy Button Utility
         document.getElementById('btn-copy').addEventListener('click', () => {
-            navigator.clipboard.writeText(generatedOrderId);
-            alert("Copied: " + generatedOrderId);
+            navigator.clipboard.writeText(finalOrderId);
+            alert("Order ID Copied: " + finalOrderId);
         });
 
-        // --- VERIFICATION LOGIC ---
-        function setStatus(msg, color) {
+        // --- 3. VERIFICATION ---
+        function showMessage(text, color) {
             const box = document.getElementById('status-box');
-            box.innerText = msg;
+            box.innerText = text;
             box.style.color = color;
             box.style.borderColor = color;
             box.classList.remove('hidden');
         }
 
         document.getElementById('btn-verify').addEventListener('click', async () => {
-            try {
-                const id = document.getElementById('verify-input').value.trim().toUpperCase();
-                if (!id) return setStatus("Enter an Order ID first.", "var(--error)");
+            if (!supabase) return alert("Database connection failed.");
+            
+            const idToVerify = document.getElementById('input-verify').value.trim().toUpperCase();
+            if (!idToVerify) return showMessage("Please enter an Order ID.", "var(--error)");
 
-                setStatus("Checking database...", "#fff");
+            showMessage("Checking database...", "#fff");
 
-                const { data, error } = await supabase.from('orders').select('*').eq('order_id', id).single();
-                const claimUI = document.getElementById('ui-claim');
+            const { data, error } = await supabase.from('orders').select('*').eq('order_id', idToVerify).single();
+            const claimUI = document.getElementById('step-4-claim');
 
-                if (error || !data) {
-                    setStatus("Order not found.", "var(--error)");
-                    claimUI.classList.add('hidden');
-                    return;
-                }
+            if (error || !data) {
+                showMessage("Order not found.", "var(--error)");
+                claimUI.classList.add('hidden');
+                return;
+            }
 
-                if (data.status === 'authorized') {
-                    setStatus("Payment Verified! Claim your key below.", "var(--accent)");
-                    authorizedOrderData = data;
-                    claimUI.classList.remove('hidden');
-                } else if (data.status === 'claimed') {
-                    setStatus("This order has already been used.", "var(--error)");
-                    claimUI.classList.add('hidden');
-                } else {
-                    setStatus("Payment is still pending. Wait for Admin.", "var(--warning)");
-                    claimUI.classList.add('hidden');
-                }
-            } catch (e) {
-                alert("Verification Error: " + e.message);
+            if (data.status === 'authorized') {
+                showMessage("Payment Verified! Create your key below.", "var(--accent)");
+                verifiedOrderData = data;
+                claimUI.classList.remove('hidden');
+            } else if (data.status === 'claimed') {
+                showMessage("This order has already been claimed.", "var(--error)");
+                claimUI.classList.add('hidden');
+            } else {
+                showMessage("Payment pending admin verification.", "var(--warning)");
+                claimUI.classList.add('hidden');
             }
         });
 
-        // --- LICENSE GENERATION ---
+        // --- 4. CLAIM LICENSE ---
         document.getElementById('btn-claim').addEventListener('click', async () => {
-            try {
-                if (!authorizedOrderData) return;
+            if (!verifiedOrderData || !supabase) return;
 
-                let inputVal = document.getElementById('custom-key-input').value.trim().replace(/\s+/g, '-').toUpperCase();
-                let finalKey = inputVal || 'KAHACK-' + Math.random().toString(36).substr(2, 10).toUpperCase();
+            let customKey = document.getElementById('input-custom-key').value.trim().replace(/\s+/g, '-').toUpperCase();
+            let finalKey = customKey || 'KAHACK-' + Math.random().toString(36).substr(2, 10).toUpperCase();
 
-                // 1. Insert License
-                const { error } = await supabase.from('licenses').insert([
-                    { key: finalKey, rank: authorizedOrderData.days }
-                ]);
+            // Insert License
+            const { error } = await supabase.from('licenses').insert([
+                { key: finalKey, rank: verifiedOrderData.days }
+            ]);
 
-                if (error) {
-                    setStatus("That custom key is already taken!", "var(--error)");
-                    return;
-                }
-
-                // 2. Lock Order to prevent reuse
-                await supabase.from('orders').update({ status: 'claimed' }).eq('order_id', authorizedOrderData.order_id);
-
-                // 3. Success UI Swap
-                document.getElementById('ui-claim').innerHTML = `
-                    <h2 class="highlight" style="margin-bottom: 12px;">SUCCESS!</h2>
-                    <p>Your license key has been securely generated.</p>
-                    <div class="output-box" style="margin: 20px 0;">${finalKey}</div>
-                    <p style="color: var(--warning); font-weight: bold;">COPY THIS KEY NOW. IT WILL NOT BE SHOWN AGAIN.</p>
-                `;
-                setStatus("License Claimed Successfully.", "var(--accent)");
-
-            } catch (e) {
-                alert("License Error: " + e.message);
+            if (error) {
+                showMessage("That custom key is already taken!", "var(--error)");
+                return;
             }
+
+            // Lock the Order
+            await supabase.from('orders').update({ status: 'claimed' }).eq('order_id', verifiedOrderData.order_id);
+
+            // Show Success
+            document.getElementById('step-4-claim').innerHTML = `
+                <h2 class="highlight" style="margin-bottom: 16px;">SUCCESS!</h2>
+                <p>Your license key has been securely generated.</p>
+                <div class="output-box" style="margin: 24px 0;">${finalKey}</div>
+                <p style="color: var(--warning); font-weight: bold;">COPY THIS KEY NOW. IT WILL NOT BE SHOWN AGAIN.</p>
+            `;
+            showMessage("License Claimed Successfully.", "var(--accent)");
         });
+
     </script>
 </body>
 </html>
