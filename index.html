@@ -1,74 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KaHack | Storefront</title>
 
-:root {
-    --bg: #0a0a0a;
-    --panel: #141414;
-    --border: #2a2a2a;
-    --text: #eeeeee;
-    --accent: #4ade80; /* Neon Green */
-}
+    <!-- 1. LOAD SUPABASE -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-* { margin: 0; padding: 0; box-sizing: border-box; font-family: monospace; }
+    <!-- 2. STYLING -->
+    <style>
+        :root {
+            --bg: #09090b; --panel: #18181b; --border: #27272a;
+            --text-main: #f4f4f5; --text-muted: #a1a1aa;
+            --accent: #4ade80; --warning: #fbbf24; --error: #ef4444;
+        }
 
-body {
-    background-color: var(--bg);
-    color: var(--text);
-    display: flex;
-    justify-content: center;
-    padding: 50px 20px;
-}
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: monospace; }
 
-.container {
-    width: 100%;
-    max-width: 450px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
+        body {
+            background-color: var(--bg); color: var(--text-main);
+            display: flex; justify-content: center; align-items: flex-start;
+            min-height: 100vh; padding: 50px 20px;
+        }
 
-.panel {
-    background-color: var(--panel);
-    border: 1px solid var(--border);
-    padding: 25px;
-    border-radius: 8px;
-    text-align: center;
-}
+        .container { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 24px; }
 
-h2 { margin-bottom: 20px; font-size: 18px; letter-spacing: 2px; border-bottom: 1px solid var(--border); padding-bottom: 10px;}
-.highlight { color: var(--accent); }
-p { font-size: 12px; color: #888; margin-bottom: 15px; }
+        .card {
+            background-color: var(--panel); border: 1px solid var(--border);
+            padding: 30px; border-radius: 12px; text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
 
-/* Controls */
-.controls { margin-bottom: 25px; text-align: left; }
+        h2 { font-size: 18px; letter-spacing: 2px; margin-bottom: 24px; color: var(--text-main); border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+        .highlight { color: var(--accent); }
 
-.checkbox-container {
-    display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
-    background: #000; padding: 12px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
-}
-.checkbox-container input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+        /* Controls */
+        .controls-box { text-align: left; margin-bottom: 30px; }
+        
+        .toggle-row {
+            display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+            background: #000; padding: 14px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+        }
+        .toggle-row input { width: 20px; height: 20px; accent-color: var(--accent); cursor: pointer; }
 
-input[type=range] { width: 100%; margin-top: 10px; accent-color: var(--accent); cursor: pointer;}
+        input[type=range] { width: 100%; margin: 10px 0; accent-color: var(--accent); cursor: pointer; }
+        .slider-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
 
-.summary { margin-bottom: 25px; }
-#price-display { font-size: 38px; margin-top: 5px; }
+        /* Summary */
+        #days-display { font-size: 20px; color: var(--text-muted); margin-bottom: 8px; }
+        #price-display { font-size: 42px; font-weight: bold; color: var(--accent); margin-bottom: 24px; }
 
-/* Inputs and Buttons */
-input[type=text] {
-    width: 100%; padding: 15px; background: #000; border: 1px solid var(--border);
-    color: #fff; text-align: center; font-size: 14px; border-radius: 6px; margin-bottom: 15px;
-}
-input[type=text]:focus { border-color: var(--accent); outline: none; }
+        /* Inputs & Buttons */
+        input[type=text] {
+            width: 100%; padding: 16px; background: #000; border: 1px solid var(--border);
+            color: #fff; text-align: center; font-size: 14px; border-radius: 8px; margin-bottom: 16px; letter-spacing: 1px;
+        }
+        input[type=text]:focus { border-color: var(--accent); outline: none; }
 
-.primary-btn {
-    width: 100%; padding: 15px; background: #fff; color: #000; font-weight: bold;
-    border: none; border-radius: 6px; cursor: pointer; transition: 0.2s; font-size: 14px;
-}
-.primary-btn:active { transform: scale(0.98); }
+        button {
+            width: 100%; padding: 16px; background: #fff; color: #000; font-weight: bold;
+            border: none; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 14px; letter-spacing: 1px;
+        }
+        button:active { transform: scale(0.98); }
+        button.secondary { background: transparent; color: var(--text-main); border: 1px solid var(--border); margin-top: 12px; }
 
-.secondary-btn {
-    width: 100%; padding: 12px; background: transparent; color: var(--text);
-    border: 1px solid var(--border); border-radius: 6px; cursor: pointer; margin-top: 10px;
-}
+        /* Status & Output Boxes */
+        .output-box { background: #000; border: 1px dashed var(--border); padding: 20px; font-size: 24px; font-weight: bold; color: var(--accent); letter-spacing: 2px; border-radius: 8px; margin-bottom: 16px; }
+        .status-msg { padding: 12px; font-size: 13px; font-weight: bold; background: #000; border-radius: 8px; border: 1px solid var(--border); margin-top: 16px; }
+        
+        .hidden { display: none !important; }
+        p { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5; }
+    </style>
+</head>
+<body>
 
-.code-box { background: #000; border: 1px dashed var(--border); padding: 15px; font-size: 22px; font-weight: bold; color: var(--accent); letter-spacing: 2px; border-radius: 6px; }
-.status-box { padding: 15px; font-size: 12px; font-weight: bold; background: #000; border-radius: 6px; border: 1px solid var(--border); }
-.hidden { display: none !important; }
+    <div class="container">
+        
+        <!-- STEP 1: CONFIGURATION -->
+        <div class="card" id="ui-checkout">
+            <h2>1. CONFIGURE ACCESS</h2>
+            
+            <div class="controls-box" id="slider-wrapper">
+                <label class="toggle-row">
+                    <input type="checkbox" id="lifetime-check">
+                    <span style="font-size: 14px; font-weight: bold;">Unlock Lifetime Access (4.00€)</span>
+                </label>
+
+                <div class="slider-labels">
+                    <span>30 Days</span>
+                    <span>60 Days</span>
+                </div>
+                <input type="range" id="days-slider" min="30" max="60" value="30">
+                <div style="text-align: center; font-size: 11px; color: #666; margin-top: 8px;">+0.05€ per additional day</div>
+            </div>
+
+            <div id="days-display">30 Days</div>
+            <div id="price-display">2.00€</div>
+
+            <button id="btn-pay">PROCEED TO PAYPAL</button>
+        </div>
+
+        <!-- STEP 2: ORDER GENERATED (Hidden) -->
+        <div class="card hidden" id="ui-order">
+            <h2 class="highlight">ORDER GENERATED</h2>
+            <p>Please pay the exact amount via PayPal. Keep this ID safe to check your status.</p>
+            
+            <div class="output-box" id="order-id-display">ORD-XXXXXX</div>
+            <button id="btn-copy" class="secondary">COPY ORDER ID</button>
+        </div>
+
+        <!-- STEP 3: VERIFICATION -->
+        <div class="card" id="ui-verify">
+            <h2>2. VERIFY PAYMENT</h2>
+            <p>Paste your Order ID here after sending payment.</p>
+            <input type="text" id="verify-input" placeholder="ORD-..." autocomplete="off">
+            <button id="btn-verify">CHECK STATUS</button>
+            <div id="status-box" class="status-msg hidden"></div>
+        </div>
+
+        <!-- STEP 4: CLAIM KEY (Hidden) -->
+        <div class="card hidden" id="ui-claim">
+            <h2 class="highlight">3. CLAIM KEY</h2>
+            <p>Enter a custom license key or leave blank for a random secure key.</p>
+            <input type="text" id="custom-key-input" placeholder="KAHACK-CUSTOM..." autocomplete="off">
+            <button id="btn-claim">GENERATE LICENSE</button>
+        </div>
+
+    </div>
+
+    <!-- 3. LOGIC (Must be at the bottom) -->
+    <script>
+        // --- CONFIGURATION ---
+        const SUPABASE_URL = 'https://ujlhyugejsgqdtjfejar.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqbGh5dWdlanNncWR0amZlamFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTU0NDksImV4cCI6MjA5MTM5MTQ0OX0.IpFfh8RliulIFoU1SiYpf20mQ2XLnFV8HKixaaqoitE';
+        
+        // Wrapped in CORS proxy to prevent browser from blocking the webhook
+        const RAW_WEBHOOK = 'https://discord.com/api/webhooks/1499684331633905667/o85983SOfWdkvE6qvC4-P7Z3t1rV65KRaTl7EWiCnq5USEpQOYuvu-vut38tEZiY-abi';
+        const DISCORD_WEBHOOK = 'https://corsproxy.io/?' + encodeURIComponent(RAW_WEBHOOK);
+
+        // --- GLOBAL STATE ---
+        let supabase;
+        let activePrice = 2.00;
+        let activeDays = "30";
+        let generatedOrderId = "";
+        let authorizedOrderData = null;
+
+        // --- INITIALIZATION ---
+        window.addEventListener('DOMContentLoaded', () => {
+            if (!window.supabase) {
+                alert("Critical Error: Supabase failed to load. Check internet or disable adblocker.");
+                return;
+            }
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            calculatePrice(); // Set initial UI
+        });
+
+        // --- PRICING ENGINE ---
+        const slider = document.getElementById('days-slider');
+        const lifetimeCheck = document.getElementById('lifetime-check');
+        const daysDisplay = document.getElementById('days-display');
+        const priceDisplay = document.getElementById('price-display');
+        const sliderWrapper = document.getElementById('slider-wrapper');
+
+        function calculatePrice() {
+            if (lifetimeCheck.checked) {
+                // Lifetime Mode
+                slider.disabled = true;
+                slider.style.opacity = "0.3";
+                activePrice = 4.00;
+                activeDays = "Lifetime";
+                daysDisplay.innerText = "Lifetime Access";
+            } else {
+                // Dynamic Range Mode
+                slider.disabled = false;
+                slider.style.opacity = "1";
+                
+                let d = parseInt(slider.value);
+                activeDays = d.toString();
+                daysDisplay.innerText = d + " Days";
+
+                if (d === 30) {
+                    activePrice = 2.00;
+                } else if (d === 60) {
+                    activePrice = 3.00; // Hardcoded cap
+                } else {
+                    activePrice = 2.00 + ((d - 30) * 0.05); // 5 cents per extra day
+                }
+            }
+            
+            priceDisplay.innerText = activePrice.toFixed(2) + "€";
+        }
+
+        slider.addEventListener('input', calculatePrice);
+        lifetimeCheck.addEventListener('change', calculatePrice);
+
+        // --- CHECKOUT LOGIC ---
+        document.getElementById('btn-pay').addEventListener('click', async () => {
+            try {
+                generatedOrderId = 'ORD-' + Math.random().toString(36).substr(2, 7).toUpperCase();
+                const priceStr = activePrice.toFixed(2);
+
+                // 1. Swap UI
+                document.getElementById('ui-checkout').classList.add('hidden');
+                document.getElementById('ui-order').classList.remove('hidden');
+                document.getElementById('order-id-display').innerText = generatedOrderId;
+                document.getElementById('verify-input').value = generatedOrderId; // Auto-fill
+
+                // 2. Database Insert
+                const { error } = await supabase.from('orders').insert([
+                    { order_id: generatedOrderId, days: activeDays, status: 'pending' }
+                ]);
+                if (error) throw new Error("Database Write Failed: " + error.message);
+
+                // 3. Webhook (Fire and forget, catch errors silently so PayPal still opens)
+                fetch(DISCORD_WEBHOOK, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        content: `🚨 **NEW ORDER**\n**ID:** \`${generatedOrderId}\`\n**Duration:** ${activeDays}\n**Amount:** €${priceStr}` 
+                    })
+                }).catch(e => console.log("Webhook bypassed."));
+
+                // 4. Open PayPal
+                window.open(`https://paypal.me/transfer959/${priceStr}`, '_blank');
+                
+            } catch (e) {
+                alert("Checkout Error: " + e.message);
+            }
+        });
+
+        // Copy ID Utility
+        document.getElementById('btn-copy').addEventListener('click', () => {
+            navigator.clipboard.writeText(generatedOrderId);
+            alert("Copied: " + generatedOrderId);
+        });
+
+        // --- VERIFICATION LOGIC ---
+        function setStatus(msg, color) {
+            const box = document.getElementById('status-box');
+            box.innerText = msg;
+            box.style.color = color;
+            box.style.borderColor = color;
+            box.classList.remove('hidden');
+        }
+
+        document.getElementById('btn-verify').addEventListener('click', async () => {
+            try {
+                const id = document.getElementById('verify-input').value.trim().toUpperCase();
+                if (!id) return setStatus("Enter an Order ID first.", "var(--error)");
+
+                setStatus("Checking database...", "#fff");
+
+                const { data, error } = await supabase.from('orders').select('*').eq('order_id', id).single();
+                const claimUI = document.getElementById('ui-claim');
+
+                if (error || !data) {
+                    setStatus("Order not found.", "var(--error)");
+                    claimUI.classList.add('hidden');
+                    return;
+                }
+
+                if (data.status === 'authorized') {
+                    setStatus("Payment Verified! Claim your key below.", "var(--accent)");
+                    authorizedOrderData = data;
+                    claimUI.classList.remove('hidden');
+                } else if (data.status === 'claimed') {
+                    setStatus("This order has already been used.", "var(--error)");
+                    claimUI.classList.add('hidden');
+                } else {
+                    setStatus("Payment is still pending. Wait for Admin.", "var(--warning)");
+                    claimUI.classList.add('hidden');
+                }
+            } catch (e) {
+                alert("Verification Error: " + e.message);
+            }
+        });
+
+        // --- LICENSE GENERATION ---
+        document.getElementById('btn-claim').addEventListener('click', async () => {
+            try {
+                if (!authorizedOrderData) return;
+
+                let inputVal = document.getElementById('custom-key-input').value.trim().replace(/\s+/g, '-').toUpperCase();
+                let finalKey = inputVal || 'KAHACK-' + Math.random().toString(36).substr(2, 10).toUpperCase();
+
+                // 1. Insert License
+                const { error } = await supabase.from('licenses').insert([
+                    { key: finalKey, rank: authorizedOrderData.days }
+                ]);
+
+                if (error) {
+                    setStatus("That custom key is already taken!", "var(--error)");
+                    return;
+                }
+
+                // 2. Lock Order to prevent reuse
+                await supabase.from('orders').update({ status: 'claimed' }).eq('order_id', authorizedOrderData.order_id);
+
+                // 3. Success UI Swap
+                document.getElementById('ui-claim').innerHTML = `
+                    <h2 class="highlight" style="margin-bottom: 12px;">SUCCESS!</h2>
+                    <p>Your license key has been securely generated.</p>
+                    <div class="output-box" style="margin: 20px 0;">${finalKey}</div>
+                    <p style="color: var(--warning); font-weight: bold;">COPY THIS KEY NOW. IT WILL NOT BE SHOWN AGAIN.</p>
+                `;
+                setStatus("License Claimed Successfully.", "var(--accent)");
+
+            } catch (e) {
+                alert("License Error: " + e.message);
+            }
+        });
+    </script>
+</body>
+</html>
