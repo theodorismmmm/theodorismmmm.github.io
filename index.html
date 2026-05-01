@@ -4,19 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KaHack | Secure Store</title>
-    <!-- Load our CSS -->
+    <!-- Link to our separate CSS file -->
     <link rel="stylesheet" href="style.css">
-    <!-- Load Supabase -->
+    <!-- Load Supabase from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-    <!-- STEP 1: PURCHASE -->
+    <!-- 1. PURCHASE SECTION -->
     <div class="card" id="store-section">
         <h2>1. BUY ACCESS</h2>
+        
         <label>Select Duration</label>
         
+        <!-- The interactive slider -->
         <input id="duration-slider" type="range" min="0" max="2" step="1" value="0" />
+        
         <div class="slider-labels">
             <span>30 days</span>
             <span>60 days</span>
@@ -24,12 +27,12 @@
         </div>
 
         <h3 id="duration-display">30 days</h3>
-        <h3 id="price-display" class="text-success">2.00€</h3>
+        <h3 id="price-display">2.00€</h3>
 
         <button id="checkout-btn">PROCEED TO PAYPAL</button>
     </div>
 
-    <!-- STEP 2: GENERATED ORDER VIEW -->
+    <!-- 2. POST-CHECKOUT ORDER VIEW (Hidden by default) -->
     <div class="card hidden" id="order-generated-section">
         <h2 class="text-success">ORDER GENERATED</h2>
         <p class="subtitle">Pay via PayPal, then use this ID below to check your status.</p>
@@ -41,7 +44,7 @@
         <button id="copy-btn" class="secondary">COPY ID</button>
     </div>
 
-    <!-- STEP 3: STATUS TRACKER -->
+    <!-- 3. STATUS TRACKER -->
     <div class="card" id="tracker-section">
         <h2>2. VERIFY PAYMENT</h2>
         <input type="text" id="order-id" placeholder="Order ID (e.g., ORD-123)" autocomplete="off">
@@ -49,7 +52,7 @@
         <div id="status-message" class="status-msg hidden"></div>
     </div>
 
-    <!-- STEP 4: CLAIM LICENSE -->
+    <!-- 4. CLAIM LICENSE (Hidden until order is authorized) -->
     <div class="card hidden" id="license-section">
         <h2 class="text-success">3. CLAIM LICENSE</h2>
         <p class="subtitle">Enter a custom key or leave blank for a random one.</p>
@@ -57,7 +60,7 @@
         <button id="create-license-btn">GENERATE & ACTIVATE</button>
     </div>
 
-    <!-- Load our Javascript Logic -->
+    <!-- Link to our separate Javascript file (defer ensures it loads after HTML) -->
     <script src="app.js" defer></script>
 </body>
 </html>
