@@ -1,27 +1,38 @@
-// --- CONFIGURATION ---
+// ==========================================
+// 1. CONFIGURATION & CREDENTIALS
+// ==========================================
 const SUPABASE_URL = 'https://ujlhyugejsgqdtjfejar.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqbGh5dWdlanNncWR0amZlamFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTU0NDksImV4cCI6MjA5MTM5MTQ0OX0.IpFfh8RliulIFoU1SiYpf20mQ2XLnFV8HKixaaqoitE';
-// We wrap the webhook in a cors proxy so Discord doesn't block the browser request
-const DISCORD_WEBHOOK = 'https://corsproxy.io/?' + encodeURIComponent('https://discord.com/api/webhooks/1499684331633905667/o85983SOfWdkvE6qvC4-P7Z3t1rV65KRaTl7EWiCnq5USEpQOYuvu-vut38tEZiY-abi');
 
-// Initialize Supabase
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Discord Webhook wrapped in a CORS proxy to prevent browser blocking
+const RAW_WEBHOOK = 'https://discord.com/api/webhooks/1499684331633905667/o85983SOfWdkvE6qvC4-P7Z3t1rV65KRaTl7EWiCnq5USEpQOYuvu-vut38tEZiY-abi';
+const DISCORD_WEBHOOK = 'https://corsproxy.io/?' + encodeURIComponent(RAW_WEBHOOK);
 
-// --- GLOBAL VARIABLES ---
+// Global Variables
+let supabase;
 let validatedOrder = null;
 let generatedOrderIdForCopy = "";
 
-// --- TOAST HELPER ---
-let toastTimer = null;
-function showToast(msg) {
-    const toast = document.getElementById('toast');
-    toast.textContent = msg;
-    toast.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
-}
+// ==========================================
+// 2. INITIALIZATION
+// ==========================================
+window.addEventListener('DOMContentLoaded', () => {
+    // Ensure the Supabase library loaded from the CDN
+    if (!window.supabase) {
+        alert("Critical Error: Supabase failed to load. Check internet or disable adblocker.");
+        return;
+    }
+    
+    // Initialize Supabase Client
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // Set initial UI state
+    renderPlan();
+});
 
-// --- SLIDER & PRICING LOGIC ---
+// ==========================================
+// 3. PRICING SLIDER LOGIC
+// ==========================================
 const PLANS = [
     { id: "30", label: "30 days", price: 2.00 },
     { id: "60", label: "60 days", price: 3.00 },
@@ -32,175 +43,150 @@ const slider = document.getElementById("duration-slider");
 const durationDisplay = document.getElementById("duration-display");
 const priceDisplay = document.getElementById("price-display");
 
-function getSelectedPlan() {
-    return PLANS[Number(slider.value)] ?? PLANS[0];
-}
-
 function renderPlan() {
-    const plan = getSelectedPlan();
+    const plan = PLANS[Number(slider.value)] || PLANS[0];
     durationDisplay.textContent = plan.label;
     priceDisplay.textContent = plan.price.toFixed(2) + "€";
 }
 
-// Update UI when slider moves
 slider.addEventListener("input", renderPlan);
 
-// --- CHECKOUT LOGIC ---
+// ==========================================
+// 4. CHECKOUT LOGIC
+// ==========================================
 document.getElementById("checkout-btn").addEventListener("click", async () => {
-    const btn = document.getElementById("checkout-btn");
-    btn.disabled = true;
-    btn.textContent = "PROCESSING...";
     try {
-        const plan = getSelectedPlan();
-        const orderId = 'ORD-' + Array.from(crypto.getRandomValues(new Uint8Array(4)))
-            .map(b => b.toString(36)).join('').toUpperCase().substring(0, 6);
+        const plan = PLANS[Number(slider.value)];
+        const orderId = 'ORD-' + Math.random().toString(36).substr(2, 6).toUpperCase();
         const priceString = plan.price.toFixed(2);
 
-        // 1. Save Order to Supabase Database first
-        const { error } = await supabase.from('orders').insert([
-            { order_id: orderId, days: plan.id, status: 'pending' }
-        ]);
-
-        if (error) {
-            showToast("Database Error: " + error.message);
-            btn.disabled = false;
-            btn.textContent = "PROCEED TO PAYPAL";
-            return;
-        }
-
-        // 2. Setup UI for post-checkout
+        // A. Setup UI (Hide store, show order ID)
         document.getElementById('store-section').classList.add('hidden');
         document.getElementById('order-generated-section').classList.remove('hidden');
         document.getElementById('display-order-id').innerText = orderId;
-        document.getElementById('order-id').value = orderId; // Auto-fill the tracker box
+        document.getElementById('order-id').value = orderId; // Auto-fill the tracker
         generatedOrderIdForCopy = orderId;
-        document.getElementById('order-generated-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-        // 3. Send Discord Webhook via Proxy
+        // B. Save Order to Database
+        const { error } = await supabase.from('orders').insert([
+            { order_id: orderId, days: plan.id, status: 'pending' }
+        ]);
+        
+        if (error) {
+            throw new Error("Database Write Error: " + error.message);
+        }
+
+        // C. Send Discord Webhook
+        // Note: We catch errors silently here so that if the webhook fails, PayPal still opens
         fetch(DISCORD_WEBHOOK, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                content: `🛒 **New Purchase Attempt**\n**Order ID:** \`${orderId}\`\n**Duration:** ${plan.label}\n**Expected:** €${priceString}`
+            body: JSON.stringify({ 
+                content: `🛒 **New Purchase Attempt**\n**Order ID:** \`${orderId}\`\n**Duration:** ${plan.label}\n**Expected:** €${priceString}` 
             })
-        }).catch((err) => console.log('Webhook failed (non-critical):', err));
+        }).catch(err => console.log("Webhook failed, order saved locally."));
 
-        // 4. Open PayPal in new tab
+        // D. Open PayPal in a new tab
         window.open(`https://paypal.me/transfer959/${priceString}`, '_blank');
-
+        
     } catch (err) {
-        showToast("Checkout Error: " + err.message);
-        btn.disabled = false;
-        btn.textContent = "PROCEED TO PAYPAL";
+        alert("Checkout Error: " + err.message);
     }
 });
 
-// Copy ID Button
+// Helper Function: Copy ID Button
 document.getElementById("copy-btn").addEventListener("click", () => {
-    navigator.clipboard.writeText(generatedOrderIdForCopy)
-        .then(() => showToast("✓ Order ID copied!"))
-        .catch(() => showToast("Could not copy. Please copy manually."));
+    navigator.clipboard.writeText(generatedOrderIdForCopy);
+    alert("Copied: " + generatedOrderIdForCopy);
 });
 
-
-// --- ORDER TRACKING LOGIC ---
+// ==========================================
+// 5. ORDER STATUS CHECKER
+// ==========================================
 function showStatus(text, colorHex) {
     const msgBox = document.getElementById('status-message');
     msgBox.style.color = colorHex;
     msgBox.style.border = `1px solid ${colorHex}`;
-    msgBox.style.background = `rgba(0,0,0,0.5)`;
     msgBox.innerText = text;
     msgBox.classList.remove('hidden');
 }
 
 document.getElementById("check-status-btn").addEventListener("click", async () => {
-    const btn = document.getElementById("check-status-btn");
-    btn.disabled = true;
-    btn.textContent = "CHECKING...";
     try {
         const orderId = document.getElementById('order-id').value.trim().toUpperCase();
+        
         if (!orderId) {
-            showStatus("Please enter an Order ID.", "#ff3333");
-            btn.disabled = false;
-            btn.textContent = "CHECK STATUS";
-            return;
+            return showStatus("Please enter an Order ID.", "#ff3333");
         }
 
         showStatus("Checking database...", "#fbbf24");
 
+        // Query Supabase for the order
         const { data, error } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
         const licSection = document.getElementById('license-section');
 
+        // Handle Results
         if (error || !data) {
             showStatus("Order not found. Check your ID.", "#ff3333");
             licSection.classList.add('hidden');
-        } else if (data.status === 'authorized') {
-            showStatus("Payment Verified! You may now claim your key.", "#4ade80");
-            validatedOrder = data;
+            return;
+        }
+
+        if (data.status === 'authorized') {
+            showStatus("Payment Verified! Claim your key below.", "#4ade80");
+            validatedOrder = data; // Save the validated data for the next step
             licSection.classList.remove('hidden');
-            licSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } else if (data.status === 'claimed') {
-            showStatus("This order has already been used to claim a key.", "#ff3333");
+            showStatus("This order was already used to claim a key.", "#ff3333");
             licSection.classList.add('hidden');
         } else {
-            showStatus("Payment is pending admin verification. Please wait.", "#fbbf24");
+            showStatus("Payment pending verification. Please wait.", "#fbbf24");
             licSection.classList.add('hidden');
         }
     } catch (err) {
-        showStatus("Status check failed: " + err.message, "#ff3333");
-    } finally {
-        btn.disabled = false;
-        btn.textContent = "CHECK STATUS";
+        alert("Status Check Error: " + err.message);
     }
 });
 
-
-// --- LICENSE GENERATION LOGIC ---
+// ==========================================
+// 6. LICENSE GENERATION
+// ==========================================
 document.getElementById("create-license-btn").addEventListener("click", async () => {
-    const btn = document.getElementById("create-license-btn");
-    btn.disabled = true;
-    btn.textContent = "GENERATING...";
     try {
         if (!validatedOrder) return;
-
+        
         let inputKey = document.getElementById('custom-key').value.trim().replace(/\s+/g, '-').toUpperCase();
-        let finalKey = inputKey || 'KAHACK-' + Array.from(crypto.getRandomValues(new Uint8Array(8)))
-            .map(b => b.toString(36)).join('').toUpperCase().substring(0, 10);
+        
+        // Generate a random key if the user left it blank
+        let finalKey = inputKey || 'KAHACK-' + Math.random().toString(36).substr(2, 8).toUpperCase();
 
-        // 1. Insert License into Database
+        // A. Insert License into Supabase
         const { error } = await supabase.from('licenses').insert([{
-            key: finalKey,
-            rank: validatedOrder.days
+            key: finalKey, 
+            rank: validatedOrder.days 
         }]);
 
         if (error) {
-            showStatus("That custom key is already taken! Try another one.", "#ff3333");
-            btn.disabled = false;
-            btn.textContent = "GENERATE & ACTIVATE";
-        } else {
-            // 2. Lock the order
-            await supabase.from('orders').update({ status: 'claimed' }).eq('order_id', validatedOrder.order_id);
-
-            // 3. Show Success Screen
-            document.getElementById('license-section').innerHTML = `
-                <div style="text-align:center;">
-                    <h2 style="color:#4ade80; margin-bottom:10px;">SUCCESS!</h2>
-                    <p style="font-size:12px; color:#888; margin-bottom:15px;">Your license key is ready to use.</p>
-                    <div style="background:#000; border:1px dashed #333; padding:15px; border-radius:6px; margin-bottom:15px;">
-                        <div style="color:#fff; font-size:16px; font-weight:bold; letter-spacing:1px;">${finalKey}</div>
-                    </div>
-                    <p style="font-size:10px; color:#fbbf24;">Please copy this key immediately.</p>
+            showStatus("Custom key already taken! Try another.", "#ff3333");
+            return;
+        } 
+        
+        // B. Lock the Order (Prevent multiple keys from one payment)
+        await supabase.from('orders').update({ status: 'claimed' }).eq('order_id', validatedOrder.order_id);
+        
+        // C. Show Success UI
+        document.getElementById('license-section').innerHTML = `
+            <div style="text-align:center;">
+                <h2 class="text-success" style="margin-bottom:10px;">SUCCESS!</h2>
+                <div class="order-box" style="margin:15px 0;">
+                    <div style="color:#fff; font-size:16px; font-weight:bold; letter-spacing:1px;">${finalKey}</div>
                 </div>
-            `;
-            showStatus("License successfully generated and secured.", "#4ade80");
-        }
+                <p style="font-size:10px; color:var(--warning);">COPY THIS KEY NOW. IT WILL NOT BE SHOWN AGAIN.</p>
+            </div>
+        `;
+        showStatus("License generated securely.", "#4ade80");
+        
     } catch (err) {
-        showStatus("License Error: " + err.message, "#ff3333");
-        btn.disabled = false;
-        btn.textContent = "GENERATE & ACTIVATE";
+        alert("License Generation Error: " + err.message);
     }
 });
-
-// Run this once when the page loads to set the initial slider text
-renderPlan();
-
