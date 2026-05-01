@@ -11,6 +11,16 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let validatedOrder = null;
 let generatedOrderIdForCopy = "";
 
+// --- TOAST HELPER ---
+let toastTimer = null;
+function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
 // --- SLIDER & PRICING LOGIC ---
 const PLANS = [
     { id: "30", label: "30 days", price: 2.00 },
@@ -37,49 +47,59 @@ slider.addEventListener("input", renderPlan);
 
 // --- CHECKOUT LOGIC ---
 document.getElementById("checkout-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("checkout-btn");
+    btn.disabled = true;
+    btn.textContent = "PROCESSING...";
     try {
         const plan = getSelectedPlan();
-        const orderId = 'ORD-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+        const orderId = 'ORD-' + Array.from(crypto.getRandomValues(new Uint8Array(4)))
+            .map(b => b.toString(36)).join('').toUpperCase().substring(0, 6);
         const priceString = plan.price.toFixed(2);
 
-        // 1. Setup UI for post-checkout
+        // 1. Save Order to Supabase Database first
+        const { error } = await supabase.from('orders').insert([
+            { order_id: orderId, days: plan.id, status: 'pending' }
+        ]);
+
+        if (error) {
+            showToast("Database Error: " + error.message);
+            btn.disabled = false;
+            btn.textContent = "PROCEED TO PAYPAL";
+            return;
+        }
+
+        // 2. Setup UI for post-checkout
         document.getElementById('store-section').classList.add('hidden');
         document.getElementById('order-generated-section').classList.remove('hidden');
         document.getElementById('display-order-id').innerText = orderId;
         document.getElementById('order-id').value = orderId; // Auto-fill the tracker box
         generatedOrderIdForCopy = orderId;
-
-        // 2. Save Order to Supabase Database
-        const { error } = await supabase.from('orders').insert([
-            { order_id: orderId, days: plan.id, status: 'pending' }
-        ]);
-        
-        if (error) {
-            alert("Database Error: " + error.message);
-            return;
-        }
+        document.getElementById('order-generated-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
         // 3. Send Discord Webhook via Proxy
         fetch(DISCORD_WEBHOOK, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                content: `🛒 **New Purchase Attempt**\n**Order ID:** \`${orderId}\`\n**Duration:** ${plan.label}\n**Expected:** €${priceString}` 
+            body: JSON.stringify({
+                content: `🛒 **New Purchase Attempt**\n**Order ID:** \`${orderId}\`\n**Duration:** ${plan.label}\n**Expected:** €${priceString}`
             })
-        }).catch(err => console.log("Webhook sent, ignoring proxy response."));
+        }).catch((err) => console.log('Webhook failed (non-critical):', err));
 
         // 4. Open PayPal in new tab
         window.open(`https://paypal.me/transfer959/${priceString}`, '_blank');
-        
+
     } catch (err) {
-        alert("Checkout Error: " + err.message);
+        showToast("Checkout Error: " + err.message);
+        btn.disabled = false;
+        btn.textContent = "PROCEED TO PAYPAL";
     }
 });
 
 // Copy ID Button
 document.getElementById("copy-btn").addEventListener("click", () => {
-    navigator.clipboard.writeText(generatedOrderIdForCopy);
-    alert("Copied: " + generatedOrderIdForCopy);
+    navigator.clipboard.writeText(generatedOrderIdForCopy)
+        .then(() => showToast("✓ Order ID copied!"))
+        .catch(() => showToast("Could not copy. Please copy manually."));
 });
 
 
@@ -94,9 +114,17 @@ function showStatus(text, colorHex) {
 }
 
 document.getElementById("check-status-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("check-status-btn");
+    btn.disabled = true;
+    btn.textContent = "CHECKING...";
     try {
         const orderId = document.getElementById('order-id').value.trim().toUpperCase();
-        if (!orderId) { showStatus("Please enter an Order ID.", "#ff3333"); return; }
+        if (!orderId) {
+            showStatus("Please enter an Order ID.", "#ff3333");
+            btn.disabled = false;
+            btn.textContent = "CHECK STATUS";
+            return;
+        }
 
         showStatus("Checking database...", "#fbbf24");
 
@@ -106,13 +134,11 @@ document.getElementById("check-status-btn").addEventListener("click", async () =
         if (error || !data) {
             showStatus("Order not found. Check your ID.", "#ff3333");
             licSection.classList.add('hidden');
-            return;
-        }
-
-        if (data.status === 'authorized') {
+        } else if (data.status === 'authorized') {
             showStatus("Payment Verified! You may now claim your key.", "#4ade80");
             validatedOrder = data;
             licSection.classList.remove('hidden');
+            licSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } else if (data.status === 'claimed') {
             showStatus("This order has already been used to claim a key.", "#ff3333");
             licSection.classList.add('hidden');
@@ -121,31 +147,40 @@ document.getElementById("check-status-btn").addEventListener("click", async () =
             licSection.classList.add('hidden');
         }
     } catch (err) {
-        alert("Status check failed: " + err.message);
+        showStatus("Status check failed: " + err.message, "#ff3333");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "CHECK STATUS";
     }
 });
 
 
 // --- LICENSE GENERATION LOGIC ---
 document.getElementById("create-license-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("create-license-btn");
+    btn.disabled = true;
+    btn.textContent = "GENERATING...";
     try {
         if (!validatedOrder) return;
-        
+
         let inputKey = document.getElementById('custom-key').value.trim().replace(/\s+/g, '-').toUpperCase();
-        let finalKey = inputKey || 'KAHACK-' + Math.random().toString(36).substr(2, 10).toUpperCase();
+        let finalKey = inputKey || 'KAHACK-' + Array.from(crypto.getRandomValues(new Uint8Array(8)))
+            .map(b => b.toString(36)).join('').toUpperCase().substring(0, 10);
 
         // 1. Insert License into Database
         const { error } = await supabase.from('licenses').insert([{
-            key: finalKey, 
-            rank: validatedOrder.days 
+            key: finalKey,
+            rank: validatedOrder.days
         }]);
 
         if (error) {
             showStatus("That custom key is already taken! Try another one.", "#ff3333");
+            btn.disabled = false;
+            btn.textContent = "GENERATE & ACTIVATE";
         } else {
             // 2. Lock the order
             await supabase.from('orders').update({ status: 'claimed' }).eq('order_id', validatedOrder.order_id);
-            
+
             // 3. Show Success Screen
             document.getElementById('license-section').innerHTML = `
                 <div style="text-align:center;">
@@ -160,9 +195,12 @@ document.getElementById("create-license-btn").addEventListener("click", async ()
             showStatus("License successfully generated and secured.", "#4ade80");
         }
     } catch (err) {
-        alert("License Error: " + err.message);
+        showStatus("License Error: " + err.message, "#ff3333");
+        btn.disabled = false;
+        btn.textContent = "GENERATE & ACTIVATE";
     }
 });
 
 // Run this once when the page loads to set the initial slider text
 renderPlan();
+
