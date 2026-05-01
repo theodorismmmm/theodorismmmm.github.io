@@ -3,47 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KaHack License Store</title>
+    <title>KaHack | Secure Store</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: monospace; background: #0a0a0a; color: #fff; text-align: center; padding: 40px; }
-        .card { background: #111; border: 1px solid #333; padding: 20px; border-radius: 8px; max-width: 450px; margin: 0 auto 20px; }
-        input, select, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 4px; border: 1px solid #444; background: #000; color: #fff; box-sizing: border-box; font-family: monospace;}
-        button { background: #fff; color: #000; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        button:hover { transform: scale(0.98); }
-        .hidden { display: none; }
-        .status-text { margin-top: 15px; font-weight: bold; }
+        :root {
+            --bg: #050505;
+            --card-bg: #111111;
+            --border: #333333;
+            --accent: #ffffff;
+            --text-main: #ffffff;
+            --text-muted: #888888;
+            --success: #4ade80;
+            --warning: #fbbf24;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 40px 20px;
+            background-image: radial-gradient(circle at 50% 0%, #1a1a1a 0%, transparent 50%);
+        }
+
+        .container { max-width: 500px; width: 100%; display: flex; flex-direction: column; gap: 20px; }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            transition: all 0.3s ease;
+        }
+
+        .header-title { font-size: 20px; font-weight: bold; letter-spacing: 2px; text-align: center; margin-bottom: 20px; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+
+        .label { font-size: 11px; color: var(--text-muted); margin-bottom: 5px; display: block; letter-spacing: 1px; }
+
+        /* Custom Slider */
+        .slider-container { margin: 20px 0; }
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: var(--accent); cursor: pointer; margin-top: -8px; box-shadow: 0 0 10px rgba(255,255,255,0.5); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: var(--border); border-radius: 2px; }
+        
+        .days-display { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+        .price-display { text-align: center; font-size: 32px; font-weight: bold; color: var(--success); margin: 20px 0; }
+
+        /* Toggle Checkbox */
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; background: #0a0a0a; padding: 12px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 15px; cursor: pointer; }
+        .toggle-row input { width: 20px; height: 20px; accent-color: var(--accent); cursor: pointer; }
+
+        /* Inputs & Buttons */
+        input[type="text"] { width: 100%; padding: 14px; background: #0a0a0a; border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 14px; outline: none; transition: 0.2s; margin-bottom: 10px; }
+        input[type="text"]:focus { border-color: var(--accent); }
+
+        button { width: 100%; padding: 14px; background: var(--accent); color: #000; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s; letter-spacing: 1px; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,255,255,0.2); }
+        button:active { transform: translateY(0); }
+        button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+        button.secondary:hover { border-color: var(--accent); background: rgba(255,255,255,0.05); }
+
+        .hidden { display: none !important; }
+        .status-msg { text-align: center; font-size: 12px; margin-top: 15px; padding: 10px; border-radius: 6px; font-weight: bold; }
+        .success-box { border: 1px solid var(--success); background: rgba(74, 222, 128, 0.1); color: var(--success); }
+        .warning-box { border: 1px solid var(--warning); background: rgba(251, 191, 36, 0.1); color: var(--warning); }
+        .error-box { border: 1px solid #ff3333; background: rgba(255, 51, 51, 0.1); color: #ff3333; }
+
+        /* Order Output Box */
+        .order-output { background: #000; border: 1px dashed var(--border); padding: 15px; text-align: center; border-radius: 6px; margin-bottom: 15px; }
+        .order-code { font-size: 20px; font-weight: bold; color: var(--accent); margin-bottom: 10px; letter-spacing: 2px; }
     </style>
 </head>
 <body>
 
-    <!-- STOREFRONT -->
-    <div class="card" id="store-section">
-        <h2>BUY KAHACK ACCESS</h2>
-        <select id="duration-select" onchange="updatePricing()">
-            <option value="30">30 Days</option>
-            <!-- JS will populate days 31-59 -->
-            <option value="60">60 Days</option>
-            <option value="permanent">Permanent</option>
-        </select>
-        <h3 id="price-display">Total: 2.00€</h3>
-        <button onclick="processCheckout()">Checkout via PayPal</button>
-    </div>
+    <div class="container">
+        
+        <!-- STEP 1: PURCHASE -->
+        <div class="card" id="store-section">
+            <div class="header-title">1. CONFIGURE ACCESS</div>
+            
+            <label class="toggle-row">
+                <span style="font-weight: bold; font-size: 14px;">Lifetime Access (4.00€)</span>
+                <input type="checkbox" id="perm-toggle" onchange="updatePricing()">
+            </label>
 
-    <!-- ORDER TRACKER -->
-    <div class="card">
-        <h2>CHECK ORDER STATUS</h2>
-        <input type="text" id="order-id" placeholder="Enter Order ID (e.g., ORD-123)">
-        <button onclick="checkStatus()">Verify Status</button>
-        <div id="status-message" class="status-text"></div>
-    </div>
+            <div class="slider-container" id="slider-wrap">
+                <span class="label">CUSTOM DURATION (30 - 60 DAYS)</span>
+                <div class="days-display"><span id="days-val">30</span> DAYS</div>
+                <input type="range" id="days-slider" min="30" max="60" value="30" oninput="updatePricing()">
+                <div style="display:flex; justify-content:space-between; font-size:10px; color:#888; margin-top:5px;">
+                    <span>30D (2€)</span>
+                    <span>+0.05€/Day</span>
+                    <span>60D (3€)</span>
+                </div>
+            </div>
 
-    <!-- LICENSE GENERATOR (Hidden until Authorized) -->
-    <div class="card hidden" id="license-section">
-        <h2 style="color: #4ade80;">ORDER AUTHORIZED</h2>
-        <p style="font-size: 12px; color: #888;">Enter a custom key or leave blank for a random one.</p>
-        <input type="text" id="custom-key" placeholder="Desired License Key...">
-        <button onclick="createLicense()">Generate License</button>
+            <div class="price-display" id="price-display">2.00€</div>
+            
+            <button onclick="processCheckout()">PROCEED TO PAYPAL</button>
+        </div>
+
+        <!-- GENERATED ORDER VIEW (Hidden Initially) -->
+        <div class="card hidden" id="order-generated-section">
+            <div class="header-title" style="color: var(--success);">ORDER GENERATED</div>
+            <p style="font-size: 12px; color: #aaa; text-align: center; margin-bottom: 15px;">Pay via PayPal, then save this ID to check your status.</p>
+            
+            <div class="order-output">
+                <div class="order-code" id="display-order-id">ORD-XXXXXX</div>
+                <button class="secondary" style="padding: 8px; font-size: 11px;" onclick="copyOrderId()">COPY ID</button>
+            </div>
+            
+            <button onclick="window.location.reload()">START NEW ORDER</button>
+        </div>
+
+        <!-- STEP 2: TRACKER -->
+        <div class="card" id="tracker-section">
+            <div class="header-title">2. VERIFY PAYMENT</div>
+            <span class="label">ORDER ID</span>
+            <input type="text" id="order-id" placeholder="e.g., ORD-123456" autocomplete="off">
+            <button class="secondary" onclick="checkStatus()">CHECK STATUS</button>
+            <div id="status-message" class="status-msg hidden"></div>
+        </div>
+
+        <!-- STEP 3: CLAIM LICENSE -->
+        <div class="card hidden" id="license-section">
+            <div class="header-title" style="color: var(--success);">3. CLAIM LICENSE</div>
+            <span class="label">DESIRED LICENSE KEY (Leave blank for random)</span>
+            <input type="text" id="custom-key" placeholder="KAHACK-CUSTOM..." autocomplete="off">
+            <button onclick="createLicense()">GENERATE & ACTIVATE</button>
+        </div>
+
     </div>
 
     <script>
@@ -51,101 +145,152 @@
         const SUPABASE_URL = 'https://ujlhyugejsgqdtjfejar.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqbGh5dWdlanNncWR0amZlamFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTU0NDksImV4cCI6MjA5MTM5MTQ0OX0.IpFfh8RliulIFoU1SiYpf20mQ2XLnFV8HKixaaqoitE';
         const DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1499684331633905667/o85983SOfWdkvE6qvC4-P7Z3t1rV65KRaTl7EWiCnq5USEpQOYuvu-vut38tEZiY-abi';
+        
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
         let validatedOrder = null;
+        let generatedOrderIdForCopy = "";
 
-        // Populate dynamic days (31-59)
-        const select = document.getElementById('duration-select');
-        for(let i = 31; i < 60; i++) {
-            let opt = document.createElement('option');
-            opt.value = i; opt.text = i + " Days";
-            select.insertBefore(opt, select.children[select.children.length - 2]);
-        }
-
-        // Pricing Logic
-        function calculatePrice(days) {
-            if (days === 'permanent') return 4.00;
-            let d = parseInt(days);
-            if (d === 30) return 2.00;
-            if (d === 60) return 3.00;
-            if (d > 30 && d < 60) return 2.00 + ((d - 30) * 0.05);
-            return 2.00; // Fallback
-        }
-
+        // --- PRICING LOGIC ---
         function updatePricing() {
-            const days = document.getElementById('duration-select').value;
-            document.getElementById('price-display').innerText = `Total: ${calculatePrice(days).toFixed(2)}€`;
+            const isPerm = document.getElementById('perm-toggle').checked;
+            const slider = document.getElementById('days-slider');
+            const sliderWrap = document.getElementById('slider-wrap');
+            const daysValDisplay = document.getElementById('days-val');
+            const priceDisplay = document.getElementById('price-display');
+
+            if (isPerm) {
+                sliderWrap.style.opacity = '0.3';
+                slider.disabled = true;
+                priceDisplay.innerText = '4.00€';
+            } else {
+                sliderWrap.style.opacity = '1';
+                slider.disabled = false;
+                let days = parseInt(slider.value);
+                daysValDisplay.innerText = days;
+                
+                let price = 2.00;
+                if (days === 60) {
+                    price = 3.00; // Hardcoded discount for exactly 60
+                } else if (days > 30) {
+                    price = 2.00 + ((days - 30) * 0.05); // 5 cents per extra day
+                }
+                
+                priceDisplay.innerText = price.toFixed(2) + '€';
+            }
         }
 
+        // --- CHECKOUT LOGIC ---
         async function processCheckout() {
-            const days = document.getElementById('duration-select').value;
-            const price = calculatePrice(days).toFixed(2);
+            const isPerm = document.getElementById('perm-toggle').checked;
+            const days = isPerm ? 'permanent' : document.getElementById('days-slider').value;
+            const price = document.getElementById('price-display').innerText.replace('€', '');
             const orderId = 'ORD-' + Math.random().toString(36).substr(2, 6).toUpperCase();
 
-            // Save to Supabase
-            const { error } = await supabase.from('orders').insert([{ order_id: orderId, days: days, status: 'pending' }]);
-            if (error) return alert("Database Error. Please try again.");
+            // Setup UI for Output
+            document.getElementById('store-section').classList.add('hidden');
+            document.getElementById('order-generated-section').classList.remove('hidden');
+            document.getElementById('display-order-id').innerText = orderId;
+            document.getElementById('order-id').value = orderId; // Auto-fill tracker
+            generatedOrderIdForCopy = orderId;
 
-            // Alert Admin via Webhook
+            // 1. Save to Supabase
+            const { error } = await supabase.from('orders').insert([{ order_id: orderId, days: days.toString(), status: 'pending' }]);
+            
+            if (error) {
+                alert("Database Error. Please refresh and try again.");
+                return;
+            }
+
+            // 2. Alert Admin via Webhook
             fetch(DISCORD_WEBHOOK, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: `🛒 **New Purchase Attempt**\n**Order ID:** \`${orderId}\`\n**Duration:** ${days}\n**Expected:** €${price}\n\n*Check PayPal and use \`/authorize ${orderId}\`*` })
+                body: JSON.stringify({ 
+                    content: `🛒 **New Purchase Attempt**\n**Order ID:** \`${orderId}\`\n**Duration:** ${days} Days\n**Expected Payment:** €${price}\n\n*Check PayPal, then type \`/authorize order_id:${orderId}\`*` 
+                })
             });
 
-            // Redirect & Alert
-            alert(`Your Order ID is: ${orderId}\n\nSAVE THIS ID! You will need it to claim your key after paying.`);
+            // 3. Open PayPal
             window.open(`https://paypal.me/transfer959/${price}`, '_blank');
         }
 
+        function copyOrderId() {
+            navigator.clipboard.writeText(generatedOrderIdForCopy);
+            alert("Order ID copied to clipboard!");
+        }
+
+        // --- ORDER TRACKING ---
+        function showStatus(text, type) {
+            const msgBox = document.getElementById('status-message');
+            msgBox.className = `status-msg ${type}-box`;
+            msgBox.innerText = text;
+            msgBox.classList.remove('hidden');
+        }
+
         async function checkStatus() {
-            const orderId = document.getElementById('order-id').value.trim();
-            if(!orderId) return;
+            const orderId = document.getElementById('order-id').value.trim().toUpperCase();
+            if(!orderId) { showStatus("Please enter an Order ID.", "error"); return; }
+
+            showStatus("Checking database...", "warning");
 
             const { data, error } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
-            const msg = document.getElementById('status-message');
             const licSection = document.getElementById('license-section');
 
             if (error || !data) {
-                msg.innerText = "Order not found."; msg.style.color = "#ff3333";
+                showStatus("Order not found. Check your ID.", "error");
                 licSection.classList.add('hidden');
                 return;
             }
 
             if (data.status === 'authorized') {
-                msg.innerText = "Payment Verified!"; msg.style.color = "#4ade80";
+                showStatus("Payment Verified! You may now claim your key.", "success");
                 validatedOrder = data;
                 licSection.classList.remove('hidden');
+            } else if (data.status === 'claimed') {
+                showStatus("This order has already been used to claim a key.", "error");
+                licSection.classList.add('hidden');
             } else {
-                msg.innerText = "Payment pending admin verification..."; msg.style.color = "#fbbf24";
+                showStatus("Payment is pending admin verification. Please wait.", "warning");
                 licSection.classList.add('hidden');
             }
         }
 
+        // --- LICENSE GENERATION ---
         async function createLicense() {
             if(!validatedOrder) return;
             
-            let inputKey = document.getElementById('custom-key').value.trim();
+            let inputKey = document.getElementById('custom-key').value.trim().replace(/\s+/g, '-').toUpperCase();
             let finalKey = inputKey || 'KAHACK-' + Math.random().toString(36).substr(2, 10).toUpperCase();
 
-            // Adjust this column to match your specific licenses table setup from the shortcut project (e.g., 'rank' instead of 'days')
+            // Insert into the existing licenses table (using 'rank' column for duration)
             const { error } = await supabase.from('licenses').insert([{
-                key: finalKey, // Assuming the column is named 'key' based on the shortcut
-                rank: validatedOrder.days // Pushing the days/rank data to the configuration
+                key: finalKey, 
+                rank: validatedOrder.days 
             }]);
 
             if (error) {
-                alert("Error: That key might already be taken!");
+                showStatus("That custom key is already taken! Try another one.", "error");
             } else {
-                // Security measure: Deauthorize the order so they can't generate infinite keys
+                // Lock the order so it can't be reused
                 await supabase.from('orders').update({ status: 'claimed' }).eq('order_id', validatedOrder.order_id);
                 
-                alert(`Success! Your license key is:\n\n${finalKey}\n\nKeep this safe.`);
-                document.getElementById('license-section').classList.add('hidden');
-                document.getElementById('status-message').innerText = "Key Claimed.";
+                document.getElementById('license-section').innerHTML = `
+                    <div style="text-align:center;">
+                        <h2 style="color:var(--success); margin-bottom:10px;">SUCCESS!</h2>
+                        <p style="font-size:12px; color:#888; margin-bottom:15px;">Your license key is ready to use.</p>
+                        <div class="order-output">
+                            <div class="order-code" style="color:#fff; font-size:16px;">${finalKey}</div>
+                        </div>
+                        <p style="font-size:10px; color:var(--warning);">Please copy this key immediately.</p>
+                    </div>
+                `;
+                
+                showStatus("License successfully generated and secured.", "success");
             }
         }
+
+        // Initialize display
+        updatePricing();
     </script>
 </body>
 </html>
