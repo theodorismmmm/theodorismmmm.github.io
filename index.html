@@ -4,82 +4,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KaHack | Secure Store</title>
+    <!-- Load our CSS -->
+    <link rel="stylesheet" href="style.css">
     <!-- Load Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        :root {
-            --bg: #050505; --card-bg: #111111; --border: #333333;
-            --accent: #ffffff; --text-main: #ffffff; --text-muted: #888888;
-            --success: #4ade80; --warning: #fbbf24;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; }
-
-        body {
-            background-color: var(--bg); color: var(--text-main);
-            display: flex; flex-direction: column; align-items: center;
-            min-height: 100vh; padding: 40px 20px; gap: 20px;
-            background-image: radial-gradient(circle at 50% 0%, #1a1a1a 0%, transparent 50%);
-        }
-
-        .card {
-            background: var(--card-bg); border: 1px solid var(--border);
-            border-radius: 12px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-            width: 100%; max-width: 450px;
-        }
-
-        h2 { font-size: 20px; letter-spacing: 2px; text-align: center; margin-bottom: 20px; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-        
-        input[type=range] { width: 100%; margin: 15px 0; accent-color: var(--accent); }
-        input[type="text"] { width: 100%; padding: 14px; background: #0a0a0a; border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 14px; outline: none; margin-bottom: 10px; }
-        input[type="text"]:focus { border-color: var(--accent); }
-
-        button { width: 100%; padding: 14px; background: var(--accent); color: #000; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s; letter-spacing: 1px; margin-top:10px;}
-        button:hover { background: #e0e0e0; }
-        button:active { transform: scale(0.98); }
-        button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-        button:disabled { opacity: 0.6; cursor: not-allowed; background: #666; color: #ddd; transform: none; }
-        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; border: 1px solid #444; padding: 10px 22px; border-radius: 8px; font-size: 13px; font-family: 'Courier New', Courier, monospace; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
-        .toast.show { opacity: 1; }
-        
-        .hidden { display: none !important; }
-        .status-msg { text-align: center; font-size: 12px; margin-top: 15px; padding: 10px; border-radius: 6px; font-weight: bold; }
-    </style>
 </head>
 <body>
 
     <!-- STEP 1: PURCHASE -->
     <div class="card" id="store-section">
         <h2>1. BUY ACCESS</h2>
-        
-        <label style="display:block; text-align:left; margin-top:10px; font-size: 12px; color: var(--text-muted);">
-            Select Duration
-        </label>
+        <label>Select Duration</label>
         
         <input id="duration-slider" type="range" min="0" max="2" step="1" value="0" />
-        <div style="display:flex; justify-content:space-between; font-size:12px; opacity:0.8; margin-top:6px;">
+        <div class="slider-labels">
             <span>30 days</span>
             <span>60 days</span>
             <span>Lifetime</span>
         </div>
 
-        <h3 id="duration-display" style="margin-top:20px; text-align: center; font-size: 24px;">30 days</h3>
-        <h3 id="price-display" style="text-align: center; font-size: 30px; color: var(--success); margin: 15px 0;">2.00€</h3>
+        <h3 id="duration-display">30 days</h3>
+        <h3 id="price-display" class="text-success">2.00€</h3>
 
-        <button id="checkout-btn" type="button">PROCEED TO PAYPAL</button>
+        <button id="checkout-btn">PROCEED TO PAYPAL</button>
     </div>
 
-    <!-- POST-CHECKOUT ORDER ID -->
+    <!-- STEP 2: GENERATED ORDER VIEW -->
     <div class="card hidden" id="order-generated-section">
-        <h2 style="color: var(--success);">ORDER GENERATED</h2>
-        <p style="font-size: 12px; color: #aaa; text-align: center; margin-bottom: 15px;">Pay via PayPal, then use this ID below to check your status.</p>
-        <div style="background: #000; border: 1px dashed #333; padding: 15px; text-align: center; border-radius: 6px; margin-bottom: 15px;">
-            <div id="display-order-id" style="font-size: 20px; font-weight: bold; color: var(--accent); letter-spacing: 2px;">ORD-XXXXXX</div>
+        <h2 class="text-success">ORDER GENERATED</h2>
+        <p class="subtitle">Pay via PayPal, then use this ID below to check your status.</p>
+        
+        <div class="order-box">
+            <div id="display-order-id">ORD-XXXXXX</div>
         </div>
-        <button id="copy-btn" style="background: transparent; color: #fff; border: 1px solid #333;">COPY ID</button>
+        
+        <button id="copy-btn" class="secondary">COPY ID</button>
     </div>
 
-    <!-- STEP 2: TRACKER -->
+    <!-- STEP 3: STATUS TRACKER -->
     <div class="card" id="tracker-section">
         <h2>2. VERIFY PAYMENT</h2>
         <input type="text" id="order-id" placeholder="Order ID (e.g., ORD-123)" autocomplete="off">
@@ -87,18 +49,15 @@
         <div id="status-message" class="status-msg hidden"></div>
     </div>
 
-    <!-- STEP 3: CLAIM LICENSE -->
+    <!-- STEP 4: CLAIM LICENSE -->
     <div class="card hidden" id="license-section">
-        <h2 style="color: var(--success);">3. CLAIM LICENSE</h2>
-        <p style="font-size: 11px; color: #888; margin-bottom: 10px;">Enter a custom key or leave blank for a random one.</p>
+        <h2 class="text-success">3. CLAIM LICENSE</h2>
+        <p class="subtitle">Enter a custom key or leave blank for a random one.</p>
         <input type="text" id="custom-key" placeholder="KAHACK-CUSTOM..." autocomplete="off">
         <button id="create-license-btn">GENERATE & ACTIVATE</button>
     </div>
 
-    <!-- Toast notification -->
-    <div id="toast" class="toast"></div>
-
-    <!-- Link to our Javascript File -->
-    <script src="script.js"></script>
+    <!-- Load our Javascript Logic -->
+    <script src="app.js" defer></script>
 </body>
 </html>
