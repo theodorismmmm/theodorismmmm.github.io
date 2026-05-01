@@ -8,7 +8,6 @@
     <!-- LOAD SUPABASE -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- STYLING -->
     <style>
         :root {
             --bg: #09090b; --panel: #18181b; --border: #27272a;
@@ -36,7 +35,6 @@
         .highlight { color: var(--accent); }
         p { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5; }
 
-        /* Pricing Controls */
         .toggle-row {
             display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px;
             background: #000; padding: 14px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
@@ -48,7 +46,6 @@
         #days-display { font-size: 20px; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; }
         #price-display { font-size: 42px; font-weight: bold; color: var(--accent); margin-bottom: 24px; }
 
-        /* Inputs & Buttons */
         input[type=text] {
             width: 100%; padding: 16px; background: #000; border: 1px solid var(--border);
             color: #fff; text-align: center; font-size: 16px; border-radius: 8px; margin-bottom: 16px; letter-spacing: 1px;
@@ -59,10 +56,16 @@
             width: 100%; padding: 16px; background: #fff; color: #000; font-weight: bold;
             border: none; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 14px; letter-spacing: 1px;
         }
+        button:hover { opacity: 0.9; }
         button:active { transform: scale(0.98); }
         button.secondary { background: transparent; color: var(--text-main); border: 1px solid var(--border); margin-top: 12px; }
 
-        .output-box { background: #000; border: 1px dashed var(--border); padding: 20px; font-size: 24px; font-weight: bold; color: var(--accent); letter-spacing: 2px; border-radius: 8px; margin-bottom: 16px; }
+        .output-box { 
+            background: #000; border: 1px dashed var(--border); padding: 20px; 
+            font-size: 20px; font-weight: bold; color: var(--accent); 
+            letter-spacing: 2px; border-radius: 8px; margin-bottom: 16px;
+            word-break: break-all;
+        }
         .status-msg { padding: 12px; font-size: 13px; font-weight: bold; background: #000; border-radius: 8px; border: 1px solid var(--border); margin-top: 16px; }
         .hidden { display: none !important; }
     </style>
@@ -70,16 +73,13 @@
 <body>
 
     <div class="container">
-        
         <!-- STEP 1: PRICING -->
         <div class="card" id="step-1-checkout">
             <h2>1. SELECT DURATION</h2>
-            
             <label class="toggle-row">
                 <span style="font-size: 14px; font-weight: bold;">Unlock Lifetime Access</span>
                 <input type="checkbox" id="input-lifetime">
             </label>
-
             <div id="slider-container" style="text-align: left; margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
                     <span>30 Days</span>
@@ -88,10 +88,8 @@
                 <input type="range" id="input-days" min="30" max="60" value="30">
                 <div style="text-align: center; font-size: 11px; color: #666; margin-top: 4px;">+0.05€ per extra day</div>
             </div>
-
             <div id="days-display">30 Days</div>
             <div id="price-display">2.00€</div>
-
             <button id="btn-checkout">OPEN PAYPAL & CHECKOUT</button>
         </div>
 
@@ -115,29 +113,31 @@
         <!-- STEP 4: CLAIM KEY -->
         <div class="card hidden" id="step-4-claim">
             <h2 class="highlight">3. CLAIM LICENSE</h2>
-            <p>Enter a custom key name, or leave blank to generate a random secure key.</p>
-            <input type="text" id="input-custom-key" placeholder="KAHACK-CUSTOM..." autocomplete="off">
+            <p>Enter a custom key name, or leave blank to generate a random one.</p>
+            <input type="text" id="input-custom-key" placeholder="KAHACK-CUSTOM..." maxlength="25">
             <button id="btn-claim">GENERATE LICENSE</button>
         </div>
-
     </div>
 
-    <!-- JAVASCRIPT LOGIC -->
     <script>
-        // API CONFIGURATION
+        // API CONFIG
         const SUPABASE_URL = 'https://ujlhyugejsgqdtjfejar.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqbGh5dWdlanNncWR0amZlamFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTU0NDksImV4cCI6MjA5MTM5MTQ0OX0.IpFfh8RliulIFoU1SiYpf20mQ2XLnFV8HKixaaqoitE';
-        const WEBHOOK_URL = 'https://corsproxy.io/?' + encodeURIComponent('https://discord.com/api/webhooks/1499684331633905667/o85983SOfWdkvE6qvC4-P7Z3t1rV65KRaTl7EWiCnq5USEpQOYuvu-vut38tEZiY-abi');
+        const WEBHOOK_URL = 'https://discord.com/api/webhooks/1499684331633905667/o85983SOfWdkvE6qvC4-P7Z3t1rV65KRaTl7EWiCnq5USEpQOYuvu-vut38tEZiY-abi';
 
-        let supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-        
-        // STATE VARIABLES
+        let supabase;
+        // Attempt immediate initialization
+        try {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (e) {
+            console.error("Supabase load error:", e);
+        }
+
         let currentPrice = 2.00;
         let currentDays = "30";
         let finalOrderId = "";
         let verifiedOrderData = null;
 
-        // --- 1. DYNAMIC PRICING MATH ---
         const uiSlider = document.getElementById('input-days');
         const uiLifetime = document.getElementById('input-lifetime');
         const txtDays = document.getElementById('days-display');
@@ -154,14 +154,10 @@
             } else {
                 uiSlider.disabled = false;
                 sliderBox.style.opacity = "1";
-                
                 let days = parseInt(uiSlider.value);
                 currentDays = days.toString();
                 txtDays.innerText = days + " Days";
-
-                if (days === 30) currentPrice = 2.00;
-                else if (days === 60) currentPrice = 3.00;
-                else currentPrice = 2.00 + ((days - 30) * 0.05); // Exact math
+                currentPrice = days === 30 ? 2.00 : 2.00 + ((days - 30) * 0.05);
             }
             txtPrice.innerText = currentPrice.toFixed(2) + "€";
         }
@@ -169,46 +165,45 @@
         uiSlider.addEventListener('input', updatePrice);
         uiLifetime.addEventListener('change', updatePrice);
 
-        // --- 2. CHECKOUT & PAYPAL FIX ---
-        document.getElementById('btn-checkout').addEventListener('click', () => {
-            // A. Open PayPal IMMEDIATELY to stop the browser from blocking the popup.
+        document.getElementById('btn-checkout').addEventListener('click', async () => {
             let priceString = currentPrice.toFixed(2);
+            
+            // 1. Open PayPal Immediately
             window.open(`https://paypal.me/transfer959/${priceString}`, '_blank');
 
-            // B. Generate Order ID
+            // 2. Local State
             finalOrderId = 'ORD-' + Math.random().toString(36).substr(2, 7).toUpperCase();
 
-            // C. Swap UI Screens
+            // 3. UI Update
             document.getElementById('step-1-checkout').classList.add('hidden');
             document.getElementById('step-2-order').classList.remove('hidden');
             document.getElementById('display-order-id').innerText = finalOrderId;
             document.getElementById('input-verify').value = finalOrderId;
 
-            // D. Run database and webhook tasks silently in the background
+            // 4. Background DB Push
             if (supabase) {
-                supabase.from('orders').insert([
+                await supabase.from('orders').insert([
                     { order_id: finalOrderId, days: currentDays, status: 'pending' }
-                ]).then(({error}) => {
-                    if(error) console.error("Database error:", error.message);
-                });
+                ]).catch(err => console.log("DB Push failed:", err));
             }
 
-            fetch(WEBHOOK_URL, {
+            // 5. Discord Webhook via Proxy
+            fetch('https://corsproxy.io/?' + encodeURIComponent(WEBHOOK_URL), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    content: `🛒 **NEW ORDER OPENED**\n**ID:** \`${finalOrderId}\`\n**Duration:** ${currentDays}\n**Amount:** €${priceString}` 
+                    content: `🛒 **NEW ORDER**\n**ID:** \`${finalOrderId}\`\n**Duration:** ${currentDays}\n**Amount:** €${priceString}` 
                 })
-            }).catch(e => console.log("Webhook CORS blocked, ignoring."));
+            }).catch(() => {});
         });
 
-        // Copy Button Utility
         document.getElementById('btn-copy').addEventListener('click', () => {
             navigator.clipboard.writeText(finalOrderId);
-            alert("Order ID Copied: " + finalOrderId);
+            const btn = document.getElementById('btn-copy');
+            btn.innerText = "COPIED!";
+            setTimeout(() => btn.innerText = "COPY ORDER ID", 2000);
         });
 
-        // --- 3. VERIFICATION ---
         function showMessage(text, color) {
             const box = document.getElementById('status-box');
             box.innerText = text;
@@ -218,14 +213,14 @@
         }
 
         document.getElementById('btn-verify').addEventListener('click', async () => {
-            if (!supabase) return alert("Database connection failed.");
+            if (!supabase) return alert("Database connection unavailable.");
             
             const idToVerify = document.getElementById('input-verify').value.trim().toUpperCase();
             if (!idToVerify) return showMessage("Please enter an Order ID.", "var(--error)");
 
-            showMessage("Checking database...", "#fff");
+            showMessage("Verifying status...", "#fff");
 
-            const { data, error } = await supabase.from('orders').select('*').eq('order_id', idToVerify).single();
+            const { data, error } = await supabase.from('orders').select('*').eq('order_id', idToVerify).maybeSingle();
             const claimUI = document.getElementById('step-4-claim');
 
             if (error || !data) {
@@ -235,48 +230,50 @@
             }
 
             if (data.status === 'authorized') {
-                showMessage("Payment Verified! Create your key below.", "var(--accent)");
+                showMessage("Payment Verified!", "var(--accent)");
                 verifiedOrderData = data;
                 claimUI.classList.remove('hidden');
             } else if (data.status === 'claimed') {
                 showMessage("This order has already been claimed.", "var(--error)");
                 claimUI.classList.add('hidden');
             } else {
-                showMessage("Payment pending admin verification.", "var(--warning)");
+                showMessage("Payment pending admin approval.", "var(--warning)");
                 claimUI.classList.add('hidden');
             }
         });
 
-        // --- 4. CLAIM LICENSE ---
         document.getElementById('btn-claim').addEventListener('click', async () => {
             if (!verifiedOrderData || !supabase) return;
 
-            let customKey = document.getElementById('input-custom-key').value.trim().replace(/\s+/g, '-').toUpperCase();
-            let finalKey = customKey || 'KAHACK-' + Math.random().toString(36).substr(2, 10).toUpperCase();
+            let rawInput = document.getElementById('input-custom-key').value.trim();
+            // Sanitize: only alphanumeric and hyphens
+            let finalKey = rawInput 
+                ? rawInput.replace(/[^a-zA-Z0-9]/g, '-').toUpperCase() 
+                : 'KAHACK-' + Math.random().toString(36).substr(2, 10).toUpperCase();
 
-            // Insert License
-            const { error } = await supabase.from('licenses').insert([
+            // 1. Generate License
+            const { error: licError } = await supabase.from('licenses').insert([
                 { key: finalKey, rank: verifiedOrderData.days }
             ]);
 
-            if (error) {
-                showMessage("That custom key is already taken!", "var(--error)");
+            if (licError) {
+                showMessage("That key name is taken. Try another.", "var(--error)");
                 return;
             }
 
-            // Lock the Order
+            // 2. Mark Order as Used
             await supabase.from('orders').update({ status: 'claimed' }).eq('order_id', verifiedOrderData.order_id);
 
-            // Show Success
+            // 3. Final Success UI
             document.getElementById('step-4-claim').innerHTML = `
-                <h2 class="highlight" style="margin-bottom: 16px;">SUCCESS!</h2>
-                <p>Your license key has been securely generated.</p>
-                <div class="output-box" style="margin: 24px 0;">${finalKey}</div>
-                <p style="color: var(--warning); font-weight: bold;">COPY THIS KEY NOW. IT WILL NOT BE SHOWN AGAIN.</p>
+                <h2 class="highlight">SUCCESS!</h2>
+                <p>Your license is ready:</p>
+                <div class="output-box">${finalKey}</div>
+                <p style="color: var(--warning);">COPY THIS KEY. IT WILL NOT BE SHOWN AGAIN.</p>
+                <button onclick="location.reload()" class="secondary">BACK TO STORE</button>
             `;
             showMessage("License Claimed Successfully.", "var(--accent)");
         });
-
     </script>
 </body>
 </html>
