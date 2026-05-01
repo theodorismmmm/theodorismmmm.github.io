@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KaHack License Store</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: monospace; background: #0a0a0a; color: #fff; text-align: center; padding: 40px; }
+        .card { background: #111; border: 1px solid #333; padding: 20px; border-radius: 8px; max-width: 450px; margin: 0 auto 20px; }
+        input, select, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 4px; border: 1px solid #444; background: #000; color: #fff; box-sizing: border-box; font-family: monospace;}
+        button { background: #fff; color: #000; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:hover { transform: scale(0.98); }
+        .hidden { display: none; }
+        .status-text { margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <!-- STOREFRONT -->
+    <div class="card" id="store-section">
+        <h2>BUY KAHACK ACCESS</h2>
+        <select id="duration-select" onchange="updatePricing()">
+            <option value="30">30 Days</option>
+            <!-- JS will populate days 31-59 -->
+            <option value="60">60 Days</option>
+            <option value="permanent">Permanent</option>
+        </select>
+        <h3 id="price-display">Total: 2.00€</h3>
+        <button onclick="processCheckout()">Checkout via PayPal</button>
+    </div>
+
+    <!-- ORDER TRACKER -->
+    <div class="card">
+        <h2>CHECK ORDER STATUS</h2>
+        <input type="text" id="order-id" placeholder="Enter Order ID (e.g., ORD-123)">
+        <button onclick="checkStatus()">Verify Status</button>
+        <div id="status-message" class="status-text"></div>
+    </div>
+
+    <!-- LICENSE GENERATOR (Hidden until Authorized) -->
+    <div class="card hidden" id="license-section">
+        <h2 style="color: #4ade80;">ORDER AUTHORIZED</h2>
+        <p style="font-size: 12px; color: #888;">Enter a custom key or leave blank for a random one.</p>
+        <input type="text" id="custom-key" placeholder="Desired License Key...">
+        <button onclick="createLicense()">Generate License</button>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        const DISCORD_WEBHOOK = 'YOUR_DISCORD_WEBHOOK_URL';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let validatedOrder = null;
+
+        // Populate dynamic days (31-59)
+        const select = document.getElementById('duration-select');
+        for(let i = 31; i < 60; i++) {
+            let opt = document.createElement('option');
+            opt.value = i; opt.text = i + " Days";
+            select.insertBefore(opt, select.children[select.children.length - 2]);
+        }
+
+        // Pricing Logic
+        function calculatePrice(days) {
+            if (days === 'permanent') return 4.00;
+            let d = parseInt(days);
+            if (d === 30) return 2.00;
+            if (d === 60) return 3.00;
+            if (d > 30 && d < 60) return 2.00 + ((d - 30) * 0.05);
+            return 2.00; // Fallback
+        }
+
+        function updatePricing() {
+            const days = document.getElementById('duration-select').value;
+            document.getElementById('price-display').innerText = `Total: ${calculatePrice(days).toFixed(2)}€`;
+        }
+
+        async function processCheckout() {
+            const days = document.getElementById('duration-select').value;
+            const price = calculatePrice(days).toFixed(2);
+            const orderId = 'ORD-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+
+            // Save to Supabase
+            const { error } = await supabase.from('orders').insert([{ order_id: orderId, days: days, status: 'pending' }]);
+            if (error) return alert("Database Error. Please try again.");
+
+            // Alert Admin via Webhook
+            fetch(DISCORD_WEBHOOK, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: `🛒 **New Purchase Attempt**\n**Order ID:** \`${orderId}\`\n**Duration:** ${days}\n**Expected:** €${price}\n\n*Check PayPal and use \`/authorize ${orderId}\`*` })
+            });
+
+            // Redirect & Alert
+            alert(`Your Order ID is: ${orderId}\n\nSAVE THIS ID! You will need it to claim your key after paying.`);
+            window.open(`https://paypal.me/transfer959/${price}`, '_blank');
+        }
+
+        async function checkStatus() {
+            const orderId = document.getElementById('order-id').value.trim();
+            if(!orderId) return;
+
+            const { data, error } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
+            const msg = document.getElementById('status-message');
+            const licSection = document.getElementById('license-section');
+
+            if (error || !data) {
+                msg.innerText = "Order not found."; msg.style.color = "#ff3333";
+                licSection.classList.add('hidden');
+                return;
+            }
+
+            if (data.status === 'authorized') {
+                msg.innerText = "Payment Verified!"; msg.style.color = "#4ade80";
+                validatedOrder = data;
+                licSection.classList.remove('hidden');
+            } else {
+                msg.innerText = "Payment pending admin verification..."; msg.style.color = "#fbbf24";
+                licSection.classList.add('hidden');
+            }
+        }
+
+        async function createLicense() {
+            if(!validatedOrder) return;
+            
+            let inputKey = document.getElementById('custom-key').value.trim();
+            let finalKey = inputKey || 'KAHACK-' + Math.random().toString(36).substr(2, 10).toUpperCase();
+
+            // Adjust this column to match your specific licenses table setup from the shortcut project (e.g., 'rank' instead of 'days')
+            const { error } = await supabase.from('licenses').insert([{
+                key: finalKey, // Assuming the column is named 'key' based on the shortcut
+                rank: validatedOrder.days // Pushing the days/rank data to the configuration
+            }]);
+
+            if (error) {
+                alert("Error: That key might already be taken!");
+            } else {
+                // Security measure: Deauthorize the order so they can't generate infinite keys
+                await supabase.from('orders').update({ status: 'claimed' }).eq('order_id', validatedOrder.order_id);
+                
+                alert(`Success! Your license key is:\n\n${finalKey}\n\nKeep this safe.`);
+                document.getElementById('license-section').classList.add('hidden');
+                document.getElementById('status-message').innerText = "Key Claimed.";
+            }
+        }
+    </script>
+</body>
+</html>
